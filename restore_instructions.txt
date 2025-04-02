@@ -1,0 +1,36 @@
+BACKUP RESTORE INSTRUCTIONS
+
+I see that your backup has a slightly different structure than your current project. To restore your code from the backup located at C:\Users\Arculus\Desktop\Bacheolor\Backup, please follow these steps:
+
+1. Close any running applications or terminals that might be using these files.
+
+2. For the frontend code:
+   - The backup structure appears to be: 
+     C:\Users\Arculus\Desktop\Bacheolor\Backup\MyBachelor-testing\MyBachelor-testing\
+   - Copy this entire inner MyBachelor-testing folder to:
+     C:\Users\Arculus\Desktop\Bacheolor\Fronted\
+
+3. For the backend code:
+   - The backup is at: C:\Users\Arculus\Desktop\Bacheolor\Backup\MyBachelor_Backend-main
+   - Copy this folder to: C:\Users\Arculus\Desktop\Bacheolor\Backend\
+
+4. Steps to copy using Windows Explorer:
+   a. Open two File Explorer windows
+   b. In the first window, navigate to C:\Users\Arculus\Desktop\Bacheolor\Backup
+   c. In the second window, navigate to C:\Users\Arculus\Desktop\Bacheolor
+   d. From the first window, navigate into MyBachelor-testing and copy the inner MyBachelor-testing folder
+   e. Paste it into the Fronted folder in the second window (replacing the current one)
+   f. Go back to the first window, copy the MyBachelor_Backend-main folder
+   g. Paste it into the Backend folder in the second window (replacing the current one)
+
+5. The ErrorCapture.js file doesn't appear to be in the backup, which suggests it might be a newer file you created. After restoring the backup, you might need to:
+   a. Create a "components" folder in: C:\Users\Arculus\Desktop\Bacheolor\Fronted\MyBachelor-testing\app\
+   b. Install the required packages for error capturing:
+      ```
+      cd C:\Users\Arculus\Desktop\Bacheolor\Fronted\MyBachelor-testing
+      npm install expo-screen-capture expo-file-system expo-sharing
+      ```
+
+6. After restoring, restart your development environment.
+
+Note: Based on the error messages I saw earlier, it seems Node.js and npm might not be properly installed or configured in your environment. If you continue to have issues after restoring, you might need to install or reconfigure Node.js. 
