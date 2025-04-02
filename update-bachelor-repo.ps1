@@ -97,7 +97,7 @@ foreach ($sourcePath in $sourcePaths) {
                 New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
             }
 
-            # Copy and update file if it differs or doesn’t exist
+            # Copy and update file if it differs or doesn't exist
             if (Test-Path $targetPath) {
                 $sourceContent = Get-Content -Path $file.FullName -Raw
                 $targetContent = Get-Content -Path $targetPath -Raw
@@ -127,29 +127,102 @@ if ($stagedChanges) {
     Write-Host $stagedChanges
 } else {
     Write-Host "No changes to commit." -ForegroundColor Green
+    # Even when no changes, we should disconnect GitHub credentials
+    # Step 9: Thoroughly disconnect GitHub credentials
+    Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
+    # Reject all stored credentials for GitHub
+    git credential reject https://github.com
+    # Unset any credential helpers
+    git config --unset credential.helper
+    # Remove any stored tokens in the Windows Credential Manager
+    if (Get-Command cmdkey -ErrorAction SilentlyContinue) {
+        Write-Host "Removing GitHub entries from Windows Credential Manager..." -ForegroundColor Cyan
+        cmdkey /list | Where-Object { $_ -like "*github*" } | ForEach-Object {
+            $target = ($_ -split "Target:")[1].Trim()
+            if ($target) {
+                cmdkey /delete:$target
+            }
+        }
+    }
+    # Reset Git environment variables that might interfere with Expo
+    $env:GIT_ASKPASS = ""
+    $env:SSH_ASKPASS = ""
+
+    # Return to original directory to avoid Git context
+    Set-Location $backendPath
+
+    Write-Host "GitHub connections fully removed. You can now use Expo without interference." -ForegroundColor Green
+    Write-Host "Repository update completed successfully!" -ForegroundColor Green
     exit
 }
 
-# Step 7: Commit changes with a descriptive message
+# Step 7: Set up temporary Git identity if needed
+$userEmail = git config user.email
+$userName = git config user.name
+
+$needTempIdentity = $false
+if (-not $userEmail -or -not $userName) {
+    $needTempIdentity = $true
+    Write-Host "Setting up temporary Git identity for this commit only..." -ForegroundColor Yellow
+    git config user.email "temp@example.com"
+    git config user.name "Temporary User"
+}
+
+# Step 8: Commit changes with a descriptive message
 $commitMessage = "Updated $modifiedCount files from local directories on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 Write-Host "Committing changes with message: $commitMessage" -ForegroundColor Cyan
 try {
     git commit -m "$commitMessage"
 } catch {
+    # Clean up temporary identity if it was created
+    if ($needTempIdentity) {
+        git config --unset user.email
+        git config --unset user.name
+    }
     Handle-Error "Failed to commit changes."
 }
 
-# Step 8: Push updates to GitHub
+# Step 9: Push updates to GitHub
 Write-Host "Pushing updates to $repoUrl..." -ForegroundColor Cyan
 try {
     git push origin $branchName
 } catch {
+    # Clean up temporary identity if it was created
+    if ($needTempIdentity) {
+        git config --unset user.email
+        git config --unset user.name
+    }
     Handle-Error "Failed to push changes. Check network or authentication."
 }
 
-# Step 9: Disconnect GitHub credentials
-Write-Host "Disconnecting GitHub credentials..." -ForegroundColor Cyan
-git credential reject https://github.com
-git config --unset credential.helper
+# Clean up temporary identity if it was created
+if ($needTempIdentity) {
+    git config --unset user.email
+    git config --unset user.name
+}
 
+# Step 10: Thoroughly disconnect GitHub credentials
+Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
+# Reject all stored credentials for GitHub
+git credential reject https://github.com
+# Unset any credential helpers
+git config --unset credential.helper
+# Remove any stored tokens in the Windows Credential Manager
+if (Get-Command cmdkey -ErrorAction SilentlyContinue) {
+    Write-Host "Removing GitHub entries from Windows Credential Manager..." -ForegroundColor Cyan
+    cmdkey /list | Where-Object { $_ -like "*github*" } | ForEach-Object {
+        $target = ($_ -split "Target:")[1].Trim()
+        if ($target) {
+            cmdkey /delete:$target
+        }
+    }
+}
+# Reset Git environment variables that might interfere with Expo
+$env:GIT_ASKPASS = ""
+$env:SSH_ASKPASS = ""
+
+# Return to original directory to avoid Git context
+Set-Location $backendPath
+
+Write-Host "GitHub connections fully removed. You can now use Expo without interference." -ForegroundColor Green
 Write-Host "Repository update completed successfully!" -ForegroundColor Green
