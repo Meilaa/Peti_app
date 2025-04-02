@@ -152,4 +152,4 @@ Write-Host "Disconnecting GitHub credentials..." -ForegroundColor Cyan
 git credential reject https://github.com
 git config --unset credential.helper
 
-Write-Host "Repository update completed successfully!" -ForegroundColor Gree
+Write-Host "Repository update completed successfully!" -ForegroundColor Green
