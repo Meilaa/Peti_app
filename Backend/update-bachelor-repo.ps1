@@ -1,5 +1,5 @@
 # This script updates the 'bachelor' repository with changes from local Backend and Fronted directories.
-# It removes duplicate folders, improves repository structure, excludes node_modules, and disconnects GitHub credentials after pushing.
+# It dynamically identifies and removes duplicate folders, improves repository structure, excludes node_modules, and disconnects GitHub credentials after pushing.
 
 # Configuration
 $repoUrl = "https://github.com/arculusdev/bachelor.git"      # Repository URL
@@ -18,8 +18,8 @@ function Handle-Error {
 # Function to compare two directories by file hashes
 function Compare-Directories {
     param ($dir1, $dir2)
-    $files1 = Get-ChildItem -Path $dir1 -File -Recurse | Get-FileHash
-    $files2 = Get-ChildItem -Path $dir2 -File -Recurse | Get-FileHash
+    $files1 = Get-ChildItem -Path $dir1 -File -Recurse -Exclude "node_modules" | Get-FileHash
+    $files2 = Get-ChildItem -Path $dir2 -File -Recurse -Exclude "node_modules" | Get-FileHash
     if ($files1.Count -ne $files2.Count) { return $false }
     $hashes1 = $files1 | Sort-Object -Property Path | Select-Object -ExpandProperty Hash
     $hashes2 = $files2 | Sort-Object -Property Path | Select-Object -ExpandProperty Hash
@@ -109,27 +109,41 @@ if (-Not (Test-Path $gitignorePath)) {
     }
 }
 
-# Step 6: Remove duplicate folders
+# Step 6: Dynamically identify and remove duplicate folders
 Write-Host "Checking for duplicate folders in the repository..." -ForegroundColor Cyan
-$dirs = Get-ChildItem -Path $localRepoPath -Directory
-$duplicatePairs = @(
-    @{ Keep = "Backend"; Remove = "MyBachelor_Backend-main" },
-    @{ Keep = "Fronted"; Remove = "MyBachelor-testing" }
-)
+$dirs = Get-ChildItem -Path $localRepoPath -Directory | Where-Object { $_.Name -ne ".git" }
+$processedDirs = @{}
 $removedCount = 0
 
-foreach ($pair in $duplicatePairs) {
-    $keepDir = Join-Path $localRepoPath $pair.Keep
-    $removeDir = Join-Path $localRepoPath $pair.Remove
-    if ((Test-Path $keepDir) -and (Test-Path $removeDir)) {
-        if (Compare-Directories -dir1 $keepDir -dir2 $removeDir) {
-            Write-Host "Duplicate folders detected: $keepDir and $removeDir are identical." -ForegroundColor Yellow
+foreach ($dir in $dirs) {
+    $dirName = $dir.Name
+    $dirPath = $dir.FullName
+
+    # Skip if already processed
+    if ($processedDirs.ContainsKey($dirPath)) { continue }
+
+    # Look for potential duplicates by comparing with other directories
+    foreach ($otherDir in $dirs) {
+        $otherDirPath = $otherDir.FullName
+        if ($dirPath -eq $otherDirPath -or $processedDirs.ContainsKey($otherDirPath)) { continue }
+
+        if (Compare-Directories -dir1 $dirPath -dir2 $otherDirPath) {
+            Write-Host "Duplicate folders detected: $dirPath and $otherDirPath are identical." -ForegroundColor Yellow
+
+            # Decide which folder to keep based on preferred naming
+            $keepDir = $dirPath
+            $removeDir = $otherDirPath
+            if ($otherDir.Name -eq "Backend" -or $otherDir.Name -eq "Fronted" -or $otherDir.Name -eq "Frontend") {
+                $keepDir = $otherDirPath
+                $removeDir = $dirPath
+            }
+
             Write-Host "Keeping $keepDir and removing $removeDir..." -ForegroundColor Yellow
             Remove-Item -Path $removeDir -Recurse -Force
             git rm -r $removeDir
+            $processedDirs[$keepDir] = $true
+            $processedDirs[$removeDir] = $true
             $removedCount++
-        } else {
-            Write-Host "Folders $keepDir and $removeDir differ in content; manual review required." -ForegroundColor Yellow
         }
     }
 }
