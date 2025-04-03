@@ -1,7 +1,7 @@
 // API and environment configuration
 const environments = {
   // Try these API URLs in order
-  API_BASE_URL: 'http://192.168.1.103:3001', // Your actual IP
+  API_BASE_URL: 'https://5b29-2a09-bac5-488a-5cd-00-94-25.ngrok-free.app', // Your actual IP
   
   // Fallback URLs
   API_FALLBACK_URLS: [

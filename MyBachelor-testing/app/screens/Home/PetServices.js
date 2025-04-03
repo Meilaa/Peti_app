@@ -19,6 +19,8 @@ import { MaterialIcons, FontAwesome5, Ionicons, Entypo } from '@expo/vector-icon
 import colors from '../../constants/colors';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
+import Vet from '../../../assets/images/vet.jpg';
+import Store from '../../../assets/images/petStore.jpg';
 
 // Nominatim API (OpenStreetMap's free geocoding service)
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
@@ -31,28 +33,20 @@ const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1606425270259-ad2604428
 const categories = [
   { 
     id: 'vet', 
-    name: 'Veterinarians', 
-    icon: 'medical-bag', 
-    color: colors.danger, 
+    name: 'Veterinary Clinics', 
+    icon: 'briefcase-medical', 
+    color: colors.yellow, 
     osmTag: 'amenity=veterinary',
-    placeholderImage: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'
+    image: Vet, // Direct reference to the imported image
   },
   { 
     id: 'store', 
     name: 'Pet Stores', 
     icon: 'store', 
-    color: colors.primary, 
+    color: colors.yellow, 
     osmTag: 'shop=pet',
-    placeholderImage: 'https://images.unsplash.com/photo-1583036623774-75a5b52345e9?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'
-  },
-  { 
-    id: 'hotel', 
-    name: 'Pet Hotels', 
-    icon: 'hotel', 
-    color: colors.success, 
-    osmTag: 'amenity=animal_boarding',
-    placeholderImage: 'https://images.unsplash.com/photo-1546967900-1bea5f16b69d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'
-  },
+    image: Store, // Direct reference to the imported image
+  }
 ];
 
 export default function PetServices() {
@@ -105,7 +99,6 @@ export default function PetServices() {
     }
   }, [selectedCategory]);
 
-  // Fetch nearby services using Overpass API (free OpenStreetMap data)
   const fetchNearbyServices = async (latitude, longitude, categoryId) => {
     setLoading(true);
     
@@ -118,7 +111,6 @@ export default function PetServices() {
       const osmTag = selectedCategoryObj.osmTag;
       const radius = 5000; // 5km radius
       
-      // Build Overpass QL query - this query format finds amenities of the specified type in the radius
       const overpassQuery = `
         [out:json][timeout:25];
         (
@@ -148,7 +140,6 @@ export default function PetServices() {
         
         const data = await response.json();
         
-        // Process OSM data into a format our app can use
         if (data && data.elements && data.elements.length > 0) {
           const osmPlaces = processOsmData(data.elements, selectedCategoryObj);
           setServices(osmPlaces);
@@ -169,13 +160,10 @@ export default function PetServices() {
     }
   };
   
-  // Process OpenStreetMap data into a format our app can use
   const processOsmData = (elements, category) => {
-    // Filter for nodes (points) with tags
     const places = elements.filter(element => 
       element.type === 'node' && element.tags
     ).map(element => {
-      // Extract relevant information
       const { id, lat, lon, tags } = element;
       
       return {
@@ -190,7 +178,7 @@ export default function PetServices() {
         vicinity: tags['addr:street'] 
           ? `${tags['addr:housenumber'] || ''} ${tags['addr:street']}, ${tags['addr:city'] || ''}`
           : 'Address unavailable',
-        rating: (Math.random() * 2 + 3).toFixed(1), // Random rating as OSM doesn't have ratings
+        rating: (Math.random() * 2 + 3).toFixed(1),
         user_ratings_total: Math.floor(Math.random() * 50) + 5,
         photos: [{ photo_reference: category.placeholderImage }],
         opening_hours: { 
@@ -198,7 +186,6 @@ export default function PetServices() {
         },
         phone: tags.phone || tags['contact:phone'],
         website: tags.website || tags['contact:website'],
-        // Store original OSM tags for later use
         osmTags: tags
       };
     });
@@ -206,36 +193,28 @@ export default function PetServices() {
     return places;
   };
   
-  // Simple function to determine if a place is open based on OSM opening_hours tag
   const isOpenNow = (openingHoursString) => {
-    // This is a very simplified check - in a real app, you'd need a proper parser
-    // for the OSM opening_hours format which can be quite complex
     try {
       const now = new Date();
       const day = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][now.getDay()];
       const hour = now.getHours();
       
-      // Check for day in opening hours
       if (openingHoursString.includes(day)) {
-        // Simple check for 24/7
         if (openingHoursString.includes('24/7')) {
           return true;
         }
         
-        // Very basic check for current hour in range
-        // This is NOT a complete implementation
-        if (hour >= 9 && hour < 18) { // Assume most places open 9am-6pm
+        if (hour >= 9 && hour < 18) {
           return true;
         }
       }
       
       return false;
     } catch (e) {
-      return Math.random() > 0.3; // Fall back to random
+      return Math.random() > 0.3;
     }
   };
   
-  // Fallback to mock data when OSM data is unavailable
   const fallbackToMockData = (latitude, longitude, category) => {
     console.log('Falling back to local mock data');
     const mockData = generateMockData(latitude, longitude, category);
@@ -248,10 +227,9 @@ export default function PetServices() {
     );
   };
   
-  // Generate mock data for demonstration purposes
   const generateMockData = (lat, lng, categoryId) => {
-    const count = 8; // Number of mock locations
-    const radius = 0.01; // Roughly 1km
+    const count = 8;
+    const radius = 0.01;
     
     const selectedCategoryObj = categories.find(cat => cat.id === categoryId);
     let mockServiceNames = [];
@@ -278,21 +256,9 @@ export default function PetServices() {
         "Pet Paradise Supplies",
         "Wags to Whiskers Shop"
       ];
-    } else if (categoryId === 'hotel') {
-      mockServiceNames = [
-        "Luxury Paws Pet Resort", 
-        "Happy Tails Pet Hotel", 
-        "Pet Paradise Inn", 
-        "The Barking Lot Suites",
-        "Pets R&R Boarding",
-        "Cozy Pets Hotel",
-        "Furry Friends Retreat",
-        "Pampered Paws Inn"
-      ];
     }
     
     return Array(count).fill().map((_, i) => {
-      // Generate random offset for coordinates
       const latOffset = (Math.random() - 0.5) * radius;
       const lngOffset = (Math.random() - 0.5) * radius;
       
@@ -306,15 +272,14 @@ export default function PetServices() {
           }
         },
         vicinity: `${Math.floor(Math.random() * 1000) + 100} Main Street`,
-        rating: (Math.random() * 2 + 3).toFixed(1), // Random rating between 3.0 and 5.0
+        rating: (Math.random() * 2 + 3).toFixed(1),
         user_ratings_total: Math.floor(Math.random() * 100) + 10,
         photos: [{ photo_reference: selectedCategoryObj.placeholderImage }],
-        opening_hours: { open_now: Math.random() > 0.3 }, // 70% chance to be open
+        opening_hours: { open_now: Math.random() > 0.3 },
         phone: `(555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
         website: "https://www.example.com",
         services: ['Pet Examination', 'Vaccinations', 'Grooming', 'Surgery'],
         osmTags: {
-          // Simulate OSM tags
           name: mockServiceNames[i % mockServiceNames.length],
           'addr:street': 'Main Street',
           'addr:housenumber': `${Math.floor(Math.random() * 1000) + 100}`
@@ -323,9 +288,7 @@ export default function PetServices() {
     });
   };
 
-  // Fetch additional details for a service
   const fetchServiceDetails = async (service) => {
-    // For OSM data, we'll use the tags we already have
     if (service.osmTags) {
       const details = {
         ...service,
@@ -339,11 +302,9 @@ export default function PetServices() {
       return;
     }
     
-    // For mock data, just use what we have
     setServiceDetails(service);
   };
   
-  // Build an address string from OSM tags
   const buildAddress = (tags) => {
     const parts = [];
     
@@ -356,7 +317,6 @@ export default function PetServices() {
     return parts.join(', ') || 'Address unavailable';
   };
   
-  // Generate appropriate services based on OSM tags and category
   const generateServicesFromTags = (tags, categoryId) => {
     if (categoryId === 'vet' || categoryId.includes('vet')) {
       return [
@@ -365,30 +325,27 @@ export default function PetServices() {
         tags.surgery === 'yes' ? 'Surgery' : 'Basic Treatment',
         tags.grooming === 'yes' ? 'Grooming' : 'Health Consultation'
       ];
-    } else if (categoryId === 'store' || categoryId.includes('pet')) {
+    } else {
       return [
         'Pet Food',
         'Pet Supplies',
         'Pet Toys',
         tags.grooming === 'yes' ? 'Grooming Services' : 'Pet Accessories'
       ];
-    } else {
-      return [
-        'Pet Boarding',
-        'Pet Daycare',
-        tags.grooming === 'yes' ? 'Grooming' : 'Pet Exercise',
-        'Specialized Care'
-      ];
     }
   };
 
+  // When opening the modal, set the selected service with the category
   const handleMarkerPress = (service) => {
-    setSelectedService(service);
-    setServiceDetails(null); // Clear previous details
+    // Add the category to the service object to ensure it's available
+    const serviceWithCategory = {
+      ...service,
+      categoryId: selectedCategory
+    };
     
-    // Fetch additional details
-    fetchServiceDetails(service);
-    
+    setSelectedService(serviceWithCategory);
+    setServiceDetails(null);
+    fetchServiceDetails(serviceWithCategory);
     setModalVisible(true);
   };
 
@@ -396,7 +353,6 @@ export default function PetServices() {
     if (!selectedService) return;
     
     try {
-      // Use device's map app for directions
       const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
       const latLng = `${lat},${lng}`;
       const label = selectedService.name;
@@ -440,37 +396,39 @@ export default function PetServices() {
     }
   };
 
-  // Get image for a service
   const getServiceImage = (service) => {
-    try {
-      // Use predefined category image if available
-      if (service.id) {
+    console.log("Getting image for service:", service?.id);
+    
+    // Extract the category ID directly from the selected service category
+    // This ensures we're using the actual selected category
+    if (service && service.id) {
+      // Check if it's a mock service or OSM service
+      if (service.id.startsWith('mock')) {
         const categoryId = service.id.split('-')[1];
+        console.log("Mock service with category:", categoryId);
+        
+        // Find the category and return its image
         const category = categories.find(cat => cat.id === categoryId);
-        if (category && category.placeholderImage) {
-          return category.placeholderImage;
+        if (category) {
+          console.log("Found category with image:", category.id);
+          return category.image;
+        }
+      } else if (service.id.startsWith('osm')) {
+        // For OSM services, determine category based on the currently selected category
+        console.log("OSM service with selected category:", selectedCategory);
+        const category = categories.find(cat => cat.id === selectedCategory);
+        if (category) {
+          return category.image;
         }
       }
-      
-      // Check for photos
-      if (service.photos && service.photos.length > 0) {
-        const photo = service.photos[0];
-        
-        if (!photo) return DEFAULT_IMAGE;
-        
-        // If photo_reference is a full URL, use it
-        if (photo.photo_reference && typeof photo.photo_reference === 'string' && 
-            photo.photo_reference.startsWith('http')) {
-          return photo.photo_reference;
-        }
-      }
-      
-      return DEFAULT_IMAGE;
-    } catch (error) {
-      console.error('Error getting service image:', error);
-      return DEFAULT_IMAGE;
     }
+    
+    // Default fallback - should not reach here if categories are properly defined
+    console.log("Using default category (first in list)");
+    return categories[0].image;
   };
+
+
 
   let text = 'Waiting for location...';
   if (errorMsg) {
@@ -494,16 +452,13 @@ export default function PetServices() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Nearby Pet Services</Text>
         
-        {/* Attribution required for OpenStreetMap data */}
         <TouchableOpacity 
           style={styles.attribution}
           onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
         >
-          <Text style={styles.attributionText}>© OpenStreetMap</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Category selector */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
@@ -536,7 +491,6 @@ export default function PetServices() {
         ))}
       </ScrollView>
 
-      {/* Map view */}
       {location ? (
         <MapView
           ref={mapRef}
@@ -549,7 +503,7 @@ export default function PetServices() {
           }}
           showsUserLocation={true}
           showsMyLocationButton={true}
-          attributionEnabled={true} // Shows attribution for map data
+          attributionEnabled={true}
         >
           {services.map((service) => (
             <Marker
@@ -571,7 +525,6 @@ export default function PetServices() {
         </View>
       )}
 
-      {/* Service list */}
       <View style={styles.listContainer}>
         <Text style={styles.listTitle}>Nearby {categories.find(cat => cat.id === selectedCategory).name}</Text>
         {services.length === 0 ? (
@@ -602,10 +555,6 @@ export default function PetServices() {
                     <Text style={styles.ratingText}>
                       {service.rating} ({service.user_ratings_total} reviews)
                     </Text>
-                    <Text style={[styles.openStatus, 
-                      { color: service.opening_hours?.open_now ? colors.success : colors.danger }]}>
-                      {service.opening_hours?.open_now ? 'Open Now' : 'Closed'}
-                    </Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={24} color={colors.grey} />
@@ -615,7 +564,6 @@ export default function PetServices() {
         )}
       </View>
 
-      {/* Service detail modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -633,14 +581,14 @@ export default function PetServices() {
 
             {selectedService && (
               <ScrollView>
-                <View style={styles.serviceImageContainer}>
-                  <Image
-                    source={{ uri: getServiceImage(selectedService) }}
-                    style={styles.serviceImage}
-                    resizeMode="cover"
-                    defaultSource={{ uri: DEFAULT_IMAGE }}
-                  />
-                </View>
+               <View style={styles.serviceImageContainer}>
+                <Image
+                  source={getServiceImage(selectedService)}
+                  style={styles.serviceImage}
+                  resizeMode="cover"
+                  onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
+                />
+              </View>
 
                 <Text style={styles.modalTitle}>{selectedService.name}</Text>
                 <Text style={styles.modalAddress}>
@@ -651,10 +599,6 @@ export default function PetServices() {
                   <Ionicons name="star" size={16} color={colors.yellow} />
                   <Text style={styles.modalRating}>
                     {selectedService.rating} ({selectedService.user_ratings_total || 0} reviews)
-                  </Text>
-                  <Text style={[styles.modalOpenStatus, 
-                    { color: selectedService.opening_hours?.open_now ? colors.success : colors.danger }]}>
-                    {selectedService.opening_hours?.open_now ? 'Open Now' : 'Closed'}
                   </Text>
                 </View>
 
@@ -693,24 +637,6 @@ export default function PetServices() {
                     <Text style={styles.actionButtonText}>Website</Text>
                   </TouchableOpacity>
                 </View>
-
-                <View style={styles.servicesContainer}>
-                  <Text style={styles.servicesTitle}>Services Offered</Text>
-                  {(serviceDetails?.services || selectedService.services || ['Pet Services']).map((service, index) => (
-                    <View key={index} style={styles.serviceItem}>
-                      <Entypo name="dot-single" size={20} color={colors.yellow} />
-                      <Text style={styles.serviceText}>{service}</Text>
-                    </View>
-                  ))}
-                </View>
-                
-                {/* OSM Data Attribution */}
-                <View style={styles.attributionContainer}>
-                  <Text style={styles.attributionTitle}>Data provided by:</Text>
-                  <TouchableOpacity onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}>
-                    <Text style={styles.attributionLink}>© OpenStreetMap contributors</Text>
-                  </TouchableOpacity>
-                </View>
               </ScrollView>
             )}
           </View>
@@ -738,17 +664,16 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   header: {
-    paddingTop: 50,
-    paddingBottom: 15,
     backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-    alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '600',
     color: colors.black,
   },
   attribution: {
@@ -863,7 +788,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 10,
   },
-  // Modal styles
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -928,22 +852,23 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
+    gap: 5
   },
   actionButton: {
     flex: 1,
     backgroundColor: colors.yellow,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 5,
     flexDirection: 'row',
   },
   actionButtonText: {
     color: colors.white,
-    fontWeight: '600',
     marginLeft: 5,
+    fontSize: 12,
   },
   servicesContainer: {
     marginTop: 10,
@@ -981,4 +906,4 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     marginTop: 3,
   },
-}); 
+});

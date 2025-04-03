@@ -67,23 +67,44 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Delete a calendar event
+// Update your delete route to handle both single and recurring events with the same endpoint
 router.delete('/:id', auth, async (req, res) => {
   try {
     console.log(`🗑️ DELETE /calendar-events/${req.params.id} request received`);
-    const event = await CalendarEvent.findOneAndDelete({ 
+    
+    const { deleteAllRecurring } = req.query; // Add this to check if we should delete all recurring
+    
+    // Find the event by ID
+    const event = await CalendarEvent.findOne({ 
       id: req.params.id,
       user: req.user.id 
     });
-    
+
     if (!event) {
       return res.status(404).json({ message: 'Calendar event not found' });
     }
-    
-    console.log(`✅ Deleted calendar event: ${req.params.id}`);
-    res.json({ message: 'Calendar event deleted' });
+
+    // Check if we should delete all recurring events
+    if (deleteAllRecurring === 'true' && event.recurrence !== 'none') {
+      // Delete all events with the same baseEventId
+      const baseEventId = event.baseEventId || event.id.split('_')[0];
+      await CalendarEvent.deleteMany({
+        user: req.user.id,
+        $or: [
+          { id: { $regex: `^${baseEventId}` } },
+          { baseEventId: baseEventId }
+        ]
+      });
+      console.log(`✅ Deleted all recurring events for base ID: ${baseEventId}`);
+    } else {
+      // Just delete the single event
+      await event.remove();
+      console.log(`✅ Deleted single event: ${event.id}`);
+    }
+
+    res.json({ message: 'Calendar event(s) deleted' });
   } catch (error) {
-    console.error('❌ Error deleting calendar event:', error);
+    console.error('❌ Error deleting calendar event(s):', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

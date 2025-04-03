@@ -2,13 +2,11 @@
 const enviroments = {
   // Main API URLs with fallbacks
   API_URLS: [
-    'http://192.168.1.103:3001',
-    'http://localhost:3001',
-    'http://127.0.0.1:3001'
+    'https://5b29-2a09-bac5-488a-5cd-00-94-25.ngrok-free.app',
   ],
   
   // For backward compatibility
-  API_BASE_URL: 'http://192.168.1.103:3001',
+  API_BASE_URL: 'https://5b29-2a09-bac5-488a-5cd-00-94-25.ngrok-free.app',
   API_FALLBACK_URL: 'http://localhost:3001',
   API_LOCAL_URL: 'http://127.0.0.1:3001',
   

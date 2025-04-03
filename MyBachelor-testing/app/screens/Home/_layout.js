@@ -53,7 +53,7 @@ export default function _Layout() {
           tabBarIcon: ({ focused }) => {
             return <FontAwesome5 name="store" size={18} color={focused ? colors.yellow : colors.black} />;
           },
-          tabBarLabel: 'Pet Services',  // Full label
+          tabBarLabel: 'Services',  // Full label
           headerShown: false,  // Hide the header
         }} 
       />

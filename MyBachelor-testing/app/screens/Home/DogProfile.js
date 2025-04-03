@@ -682,6 +682,7 @@ const DogProfile = () => {
   }
 
   return (
+    <ScrollView contentContainerStyle={styles.scrollViewContainer}>
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -708,13 +709,13 @@ const DogProfile = () => {
           <TouchableOpacity style={styles.button} onPress={handleAddPress}>
             <FontAwesome6 name="add" size={20} color={colors.white} />
           </TouchableOpacity>
-          <Text style={styles.buttonText}>Add Dog</Text>
+          <Text style={styles.buttonText}>Add</Text>
         </View>
         <View style={styles.buttonColumn}>
           <TouchableOpacity style={styles.button} onPress={handleEditPress}>
             <FontAwesome6 name="edit" size={18} color={colors.white} />
           </TouchableOpacity>
-          <Text style={styles.buttonText}>Edit Profile</Text>
+          <Text style={styles.buttonText}>Edit</Text>
         </View>
         <View style={styles.buttonColumn}>
           <TouchableOpacity style={styles.button} onPress={handleDeleteConfirm}>
@@ -737,7 +738,7 @@ const DogProfile = () => {
               color={colors.white} 
             />
           </TouchableOpacity>
-          <Text style={styles.buttonText}>Temperament</Text>
+          <Text style={styles.buttonText}>Mood</Text>
         </View>
       </View>
 
@@ -796,7 +797,7 @@ const DogProfile = () => {
           </View>
         </View>
       )}
-
+    
       {/* Temperament Modal with improved UI */}
       <Modal
         animationType="slide"
@@ -1131,6 +1132,7 @@ const DogProfile = () => {
         </View>
       </Modal>
     </View>
+    </ScrollView>
   );
 };
 
@@ -1178,13 +1180,11 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: 'space-between',  // Corrected typo here
     paddingHorizontal: 20,
     marginVertical: 10,
   },
-  buttonColumn: {
-    alignItems: 'center',
-  },
+  
   button: {
     backgroundColor: colors.yellow,
     padding: 10,
@@ -1195,6 +1195,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderColor: colors.black,
     borderWidth: 1,
+  },
+  buttonColumn: {
+    alignItems: 'center',
   },
   buttonText: {
     color: colors.black,
@@ -1234,13 +1237,14 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 12,
     alignItems: 'center',     // Centers everything horizontally
-},
+  },
 
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17, // Reduced font size
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    paddingBottom: 15,
+    marginTop: 10, // Move title below close button
   },
   input: {
     height: 45,
@@ -1326,26 +1330,51 @@ const styles = StyleSheet.create({
   },
   temperamentOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 20,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',  
+    marginVertical: 10,
+    flexWrap: 'nowrap',  // Ensures items stay in one row
+    gap: 2,
+    width: '100%',  // Ensure all elements fit in the container width
   },
+
   temperamentOption: {
     alignItems: 'center',
-    padding: 12,
+    padding: 6,  // Reduced padding to fit options
     borderRadius: 10,
     borderWidth: 2,
     borderColor: '#eee',
     backgroundColor: '#f9f9f9',
-    width: '30%',
-    minWidth: 85,
-    marginBottom: 10,
+    width: '32%',  // Adjust width to fit all options in one row
+    minWidth: 60,  // Ensure options are small enough to fit in one row
+    marginBottom: 5,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
   },
+
+  temperamentText: {
+    marginTop: 5,
+    fontWeight: '600',
+    color: '#333',
+    fontSize: 8, // Reduced font size for temperament text
+    textAlign: 'center',
+  },
+
+  selectedTemperamentText: {
+    color: colors.white,
+    fontSize: 8, // Ensure selected temperament text is smaller
+  },
+
+  // Ensure modal title is below close button and still centered
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 0, // Remove unnecessary space
+  },
+  
   selectedTemperament: {
     backgroundColor: colors.yellow,
     borderColor: colors.yellow,
@@ -1361,7 +1390,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   temperamentLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     marginVertical: 12,
     color: colors.black,
@@ -1373,17 +1402,6 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 350,
     alignSelf: 'center',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.black,
   },
   saveButton: {
     backgroundColor: colors.yellow,
@@ -1463,7 +1481,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFC107',
     transform: [{ scale: 1.05 }]
   },
-  // Lost Dog Controls
   lostDogControlButton: {
     position: 'absolute',
     right: 20,

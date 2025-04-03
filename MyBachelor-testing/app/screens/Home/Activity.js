@@ -404,10 +404,6 @@ const fetchWalkData = async (deviceId) => {
     setModalVisible(false);
   };
 
-  const handleIconPress = () => {
-    router.push('/screens/ActivityTab/ActivitySummary');
-  };
-
   const selectWalk = (walk) => {
     setSelectedWalk(walk);
     console.log("Selected Device Name:", walk.deviceName);
@@ -669,9 +665,6 @@ const fetchWalkData = async (deviceId) => {
             <Text style={styles.minutesText}>
               {activityStats.totalMinutes}/{activityStats.goalMinutes} min
             </Text>
-            <TouchableOpacity onPress={handleIconPress}>
-              <FontAwesome6 name="circle-arrow-right" size={20} color={colors.white} />
-            </TouchableOpacity>
           </View>
           <View style={styles.barGraphWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>

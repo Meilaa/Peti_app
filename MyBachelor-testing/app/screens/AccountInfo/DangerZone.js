@@ -19,12 +19,12 @@ import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vecto
 import colors from '../../constants/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Simple fallback component for the picker if not available
 const SimplePicker = ({ selectedValue, onValueChange, items }) => {
   return (
     <View style={styles.pickerContainer}>
-      <Text style={styles.selectedValueText}>Selected: {selectedValue}</Text>
       <View style={styles.optionsContainer}>
         {items.map(item => (
           <TouchableOpacity 
@@ -130,7 +130,7 @@ const DangerZone = () => {
   // Try all API endpoints in sequence
   const fetchWithMultipleEndpoints = async (endpoint, options) => {
     try {
-      const apiUrl = environments.API_BASE_URL || 'http://localhost:3001';
+      const apiUrl = environments.API_BASE_URL;
       console.log(`📡 Fetching from: ${apiUrl}${endpoint}`);
       
       const response = await fetch(`${apiUrl}${endpoint}`, options);
@@ -579,255 +579,259 @@ const DangerZone = () => {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => router.back()} 
-            activeOpacity={0.8}
-            style={styles.backButton}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Danger Zone Alerts</Text>
-          {apiStatus === 'checking' && <ActivityIndicator size="small" color={colors.primary} />}
-          {apiStatus === 'online' && <MaterialIcons name="cloud-done" size={24} color={colors.success} />}
-          {apiStatus === 'offline' && <MaterialIcons name="cloud-off" size={24} color={colors.danger} />}
-        </View>
-
-        <View style={styles.mapContainer}>
-          <MapView
-            style={styles.map}
-            region={mapRegion}
-            onPress={handleMapPress}
-            showsUserLocation={true}
-          >
-            {/* Show existing danger zones */}
-            {dangerZones.map((zone) => (
-              <Polygon
-                key={zone._id}
-                coordinates={zone.coordinates}
-                fillColor={getDangerTypeColor(zone.dangerType)}
-                strokeColor="red"
-                strokeWidth={2}
-                tappable={true}
-                onPress={() => viewDangerZone(zone)}
-              />
-            ))}
-
-            {/* Show the current drawing points */}
-            {isDrawing && points.length > 0 && (
-              <Polygon
-                coordinates={points}
-                fillColor="rgba(255, 0, 0, 0.3)"
-                strokeColor="red"
-                strokeWidth={2}
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity 
+                style={styles.backButton} 
+                onPress={() => router.back()}
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.white} />
+              </TouchableOpacity>
+            <Text style={styles.headerTitle}>Danger Zone Alerts</Text>
+          </View>
+  
+          <View style={styles.mapContainer}>
+            <MapView
+              style={styles.map}
+              region={mapRegion}
+              onPress={handleMapPress}
+              showsUserLocation={true}
+            >
+              {/* Show existing danger zones */}
+              {dangerZones.map((zone) => (
+                <Polygon
+                  key={zone._id}
+                  coordinates={zone.coordinates}
+                  fillColor={getDangerTypeColor(zone.dangerType)}
+                  strokeColor="red"
+                  strokeWidth={2}
+                  tappable={true}
+                  onPress={() => viewDangerZone(zone)}
+                />
+              ))}
+  
+              {/* Show the current drawing points */}
+              {isDrawing && points.length > 0 && (
+                <Polygon
+                  coordinates={points}
+                  fillColor="rgba(255, 0, 0, 0.3)"
+                  strokeColor="red"
+                  strokeWidth={2}
+                />
+              )}
+  
+              {/* Show markers for the points being drawn */}
+              {isDrawing && points.map((point, index) => (
+                <Marker
+                  key={index}
+                  coordinate={point}
+                  pinColor="red"
+                />
+              ))}
+            </MapView>
+  
+            {showInstructions && !isDrawing && (
+              <View style={styles.instructionsOverlay}>
+                <Text style={styles.instructionsTitle}>Create Danger Zone Alerts</Text>
+                <Text style={styles.instructionsText}>
+                  Tap "Draw" to start creating a new danger zone. Tap on the map to add points. 
+                  You need at least 4 points to define a danger zone.
+                </Text>
+                <TouchableOpacity
+                  style={styles.instructionsButton}
+                  activeOpacity={0.8}
+                  onPress={() => setShowInstructions(false)}
+                >
+                  <Text style={styles.instructionsButtonText}>Got it</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+  
+            {isDrawing ? (
+              <View style={styles.drawingControls}>
+                <View style={styles.pointsCounter}>
+                  <Text style={styles.pointsText}>Points: {points.length}</Text>
+                  <Text style={styles.minPointsText}>(Min 4 required)</Text>
+                </View>
+                <View style={styles.pointsRow}>
+                <TouchableOpacity 
+                  style={styles.cancelButton} 
+                  activeOpacity={0.8}
+                  onPress={cancelDrawing}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.finishButton, points.length < 4 && styles.disabledButton]} 
+                  activeOpacity={0.8}
+                  onPress={finishDrawing}
+                  disabled={points.length < 4}
+                >
+                  <Text style={styles.buttonText}>Finish</Text>
+                </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.mapButtons}>
+                <TouchableOpacity 
+                  style={styles.drawButton} 
+                  activeOpacity={0.8}
+                  onPress={startDrawing}
+                >
+                  <MaterialIcons name="edit" size={20} color="white" />
+                  <Text style={styles.buttonText}>Draw Danger Zone</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+  
+          <View style={styles.listContainer}>
+            <Text style={styles.listTitle}>Your Danger Zones</Text>
+            {loading ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : dangerZones.length === 0 ? (
+              <View style={styles.emptyListContainer}>
+                <Text style={styles.emptyListText}>No danger zones defined yet.</Text>
+                <Text style={styles.emptyListSubText}>Use the 'Draw Danger Zone' button to create one.</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={dangerZones}
+                keyExtractor={(item) => item._id}
+                renderItem={renderDangerZoneItem}
+                contentContainerStyle={styles.listContent}
               />
             )}
-
-            {/* Show markers for the points being drawn */}
-            {isDrawing && points.map((point, index) => (
-              <Marker
-                key={index}
-                coordinate={point}
-                pinColor="red"
-              />
-            ))}
-          </MapView>
-
-          {showInstructions && !isDrawing && (
-            <View style={styles.instructionsOverlay}>
-              <Text style={styles.instructionsTitle}>Create Danger Zone Alerts</Text>
-              <Text style={styles.instructionsText}>
-                Tap "Draw" to start creating a new danger zone. Tap on the map to add points. 
-                You need at least 4 points to define a danger zone.
-              </Text>
-              <TouchableOpacity
-                style={styles.instructionsButton}
-                activeOpacity={0.8}
-                onPress={() => setShowInstructions(false)}
-              >
-                <Text style={styles.instructionsButtonText}>Got it</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {isDrawing ? (
-            <View style={styles.drawingControls}>
-              <TouchableOpacity 
-                style={styles.cancelButton} 
-                activeOpacity={0.8}
-                onPress={cancelDrawing}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <View style={styles.pointsCounter}>
-                <Text style={styles.pointsText}>Points: {points.length}</Text>
-                <Text style={styles.minPointsText}>(Min 4 required)</Text>
-              </View>
-              <TouchableOpacity 
-                style={[
-                  styles.finishButton, 
-                  points.length < 4 && styles.disabledButton
-                ]} 
-                activeOpacity={0.8}
-                onPress={finishDrawing}
-                disabled={points.length < 4}
-              >
-                <Text style={styles.buttonText}>Finish</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.mapButtons}>
-              <TouchableOpacity 
-                style={styles.drawButton} 
-                activeOpacity={0.8}
-                onPress={startDrawing}
-              >
-                <MaterialIcons name="edit" size={20} color="white" />
-                <Text style={styles.buttonText}>Draw Danger Zone</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.listContainer}>
-          <Text style={styles.listTitle}>Your Danger Zones</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} />
-          ) : dangerZones.length === 0 ? (
-            <View style={styles.emptyListContainer}>
-              <Text style={styles.emptyListText}>No danger zones defined yet.</Text>
-              <Text style={styles.emptyListSubText}>Use the 'Draw Danger Zone' button to create one.</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={dangerZones}
-              keyExtractor={(item) => item._id}
-              renderItem={renderDangerZoneItem}
-              contentContainerStyle={styles.listContent}
-            />
-          )}
-        </View>
-
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContent}>
-              <ScrollView contentContainerStyle={styles.modalScrollContent}>
-                <Text style={styles.modalTitle}>Danger Zone Details</Text>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter danger zone name"
-                    value={name}
-                    onChangeText={setName}
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Description (Optional)</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Enter description"
-                    value={description}
-                    onChangeText={setDescription}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Danger Type</Text>
-                  <View style={styles.pickerContainer}>
-                    <SimplePicker
-                      selectedValue={dangerType}
-                      onValueChange={(itemValue) => setDangerType(itemValue)}
-                      items={[
-                        { label: 'Highway', value: 'highway' },
-                        { label: 'River', value: 'river' },
-                        { label: 'Wildlife', value: 'wildlife' },
-                        { label: 'Cliff', value: 'cliff' },
-                        { label: 'Road', value: 'road' },
-                        { label: 'Other', value: 'other' },
-                      ]}
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Select Animal</Text>
-                  <View style={styles.pickerContainer}>
-                    <SimplePicker
-                      selectedValue={selectedAnimal}
-                      onValueChange={(itemValue) => setSelectedAnimal(itemValue)}
-                      items={animals.map(animal => ({
-                        label: animal.name,
-                        value: animal._id
-                      }))}
-                    />
-                  </View>
-                </View>
-                
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.cancelModalButton}
-                    activeOpacity={0.8}
-                    onPress={() => setModalVisible(false)}
-                    disabled={isSaving}
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.saveModalButton}
-                    activeOpacity={0.8}
-                    onPress={saveDangerZone}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <ActivityIndicator size="small" color="white" />
-                    ) : (
-                      <Text style={styles.buttonText}>Save</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </View>
           </View>
-        </Modal>
-      </View>
+  
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalBackground}>
+              <View style={styles.modalContent}>
+                <ScrollView contentContainerStyle={styles.modalScrollContent}>
+                  <Text style={styles.modalTitle}>Danger Zone Details</Text>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter danger zone name"
+                      value={name}
+                      onChangeText={setName}
+                    />
+                  </View>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Description (Optional)</Text>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      placeholder="Enter description"
+                      value={description}
+                      onChangeText={setDescription}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Danger Type</Text>
+                    <View style={styles.pickerContainer}>
+                      <SimplePicker
+                        selectedValue={dangerType}
+                        onValueChange={(itemValue) => setDangerType(itemValue)}
+                        items={[{ label: 'Highway', value: 'highway' }, { label: 'River', value: 'river' }, { label: 'Wildlife', value: 'wildlife' }, { label: 'Cliff', value: 'cliff' }, { label: 'Road', value: 'road' }, { label: 'Other', value: 'other' }]}
+                      />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Select Animal</Text>
+                    <View style={styles.pickerContainer}>
+                      <SimplePicker
+                        selectedValue={selectedAnimal}
+                        onValueChange={(itemValue) => setSelectedAnimal(itemValue)}
+                        items={animals.map(animal => ({
+                          label: animal.name,
+                          value: animal._id
+                        }))}
+                      />
+                    </View>
+                  </View>
+                  
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelModalButton}
+                      activeOpacity={0.8}
+                      onPress={() => setModalVisible(false)}
+                      disabled={isSaving}
+                    >
+                      <Text style={styles.buttonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.saveModalButton}
+                      activeOpacity={0.8}
+                      onPress={saveDangerZone}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <Text style={styles.buttonText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
+  
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: colors.yellow,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.yellow,
+    // Removed justifyContent: 'center'
   },
-  backButton: {
-    marginRight: 16,
+  
+  backButtonContainer: {
+    position: 'absolute',
+    left: 16, // Ensure the back button is on the left side
   },
+  
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    flex: 1,
+    fontSize: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 30, // Position it above the tracker card
+    flex: 1, // Ensures the title stays centered in the remaining space
   },
   mapContainer: {
-    height: 350,
-    position: 'relative',
+    height: 450,
+    margin: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
@@ -840,62 +844,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   drawButton: {
+    position: 'absolute',
+    bottom: 16,
+    left: '40%', // Centers the button horizontally
+    transform: [{ translateX: -65 }], // Adjust this value to half of the button's width (for a 130px width button)
+    backgroundColor: colors.black,
     flexDirection: 'row',
-    backgroundColor: colors.yellow,
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
+    borderRadius: 30,
+    elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    borderWidth: 1,
-    borderColor: colors.black,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
   },
   drawingControls: {
     position: 'absolute',
     bottom: 16,
     left: 16,
     right: 16,
+    flexDirection: 'COLUMN',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pointsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '80%',
   },
   cancelButton: {
-    backgroundColor: colors.yellow,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.black,
+    paddingVertical: 12, // Reduced padding
+    paddingHorizontal: 25, // Reduced padding
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 10,
     borderWidth: 1,
     borderColor: colors.black,
   },
   finishButton: {
     backgroundColor: colors.yellow,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 12, // Reduced padding
+    paddingHorizontal: 25, // Reduced padding
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowRadius: 10,
     borderWidth: 1,
-    borderColor: colors.black,
   },
   disabledButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.5)', // Lighter yellow when disabled
     borderColor: 'rgba(0, 0, 0, 0.3)',
   },
   pointsCounter: {
@@ -904,28 +915,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     alignItems: 'center',
+    width: '80%',
   },
   pointsText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   minPointsText: {
     color: 'white',
     fontSize: 12,
   },
   buttonText: {
-    color: colors.black,
-    fontWeight: 'bold',
+    color: colors.white,
+    fontWeight: '600',
     marginLeft: 5,
   },
   listContainer: {
     flex: 1,
-    padding: 16,
+    padding: 12,
   },
   listTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 8,
+    textAlign: 'center',
   },
   listContent: {
     paddingBottom: 20,
@@ -937,13 +950,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   emptyListText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.gray,
+    fontSize: 14,
+    color: colors.white,
   },
   emptyListSubText: {
-    fontSize: 14,
-    color: colors.gray,
+    fontSize: 12,
+    color: colors.white,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -966,7 +978,7 @@ const styles = StyleSheet.create({
   },
   territoryName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   territoryInfo: {
     fontSize: 14,
@@ -986,7 +998,7 @@ const styles = StyleSheet.create({
   dangerTypeText: {
     color: 'white',
     marginLeft: 5,
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
   },
   territoryActions: {
@@ -1003,7 +1015,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: colors.white,
     borderRadius: 10,
     padding: 20,
     width: '90%',
@@ -1014,7 +1026,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -1024,7 +1036,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 8,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   input: {
     backgroundColor: '#f5f5f5',
@@ -1047,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   selectedValueText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 10,
     color: colors.primary,
   },
@@ -1070,11 +1082,11 @@ const styles = StyleSheet.create({
     borderColor: colors.black,
   },
   pickerOptionSelected: {
-    backgroundColor: colors.danger,
+    backgroundColor: colors.black,
   },
   pickerOptionText: {
     color: colors.black,
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 14,
   },
   pickerOptionTextSelected: {
@@ -1086,7 +1098,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   cancelModalButton: {
-    backgroundColor: colors.yellow,
+    backgroundColor: colors.black,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -1129,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   instructionsTitle: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 18,
     marginBottom: 10,
   },
@@ -1154,7 +1166,7 @@ const styles = StyleSheet.create({
   },
   instructionsButtonText: {
     color: colors.black,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });
 

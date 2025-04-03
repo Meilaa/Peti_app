@@ -10,7 +10,8 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import MapView, { Marker, Polygon } from 'react-native-maps';
@@ -18,6 +19,8 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import colors from '../../constants/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
+import Ionicons from '@expo/vector-icons/Ionicons';
+
 
 const SafeZone = () => {
   const router = useRouter();
@@ -545,297 +548,291 @@ const SafeZone = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Safe Zones</Text>
-        {apiStatus === 'offline' && (
-          <MaterialIcons name="cloud-off" size={24} color={environments.colors.error || '#FF5252'} />
-        )}
-        {apiStatus === 'online' && (
-          <MaterialIcons name="cloud-done" size={24} color={environments.colors.success || '#4CAF50'} />
-        )}
-        {apiStatus === 'checking' && (
-          <ActivityIndicator size="small" color={environments.colors.primary || colors.yellow} />
-        )}
-      </View>
-      
-      <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          region={mapRegion}
-          onPress={handleMapPress}
-          onLongPress={isDrawing ? undefined : startDrawing}
-        >
-          {/* Display current territory */}
-          {currentTerritory && (
-            <Polygon
-              coordinates={currentTerritory.coordinates}
-              fillColor="rgba(255, 200, 0, 0.3)"
-              strokeColor={colors.yellow}
-              strokeWidth={2}
-            />
-          )}
-          
-          {/* Display other territories */}
-          {territories
-            .filter(t => !currentTerritory || t._id !== currentTerritory._id)
-            .map(territory => (
-              <Polygon
-                key={territory._id}
-                coordinates={territory.coordinates}
-                fillColor="rgba(200, 200, 200, 0.2)"
-                strokeColor="#BDBDBD"
-                strokeWidth={1}
-              />
-            ))}
-          
-          {/* Display points being drawn */}
-          {isDrawing && points.map((point, index) => (
-            <Marker
-              key={index}
-              coordinate={point}
-              pinColor={colors.yellow}
-            />
-          ))}
-          
-          {/* Display line for current drawing */}
-          {isDrawing && points.length > 1 && (
-            <Polygon
-              coordinates={points}
-              fillColor="rgba(255, 200, 0, 0.3)"
-              strokeColor={colors.yellow}
-              strokeWidth={2}
-            />
-          )}
-        </MapView>
-        
-        {/* Help button */}
-        <TouchableOpacity
-          style={styles.helpButton}
-          onPress={() => setShowInstructions(!showInstructions)}
-        >
-          <MaterialIcons name="help-outline" size={24} color="#FFF" />
-        </TouchableOpacity>
-        
-        {/* Instructions overlay */}
-        {showInstructions && (
-          <View style={styles.instructionsOverlay}>
-            <Text style={styles.instructionsTitle}>How to Create a Safe Zone:</Text>
-            <View style={styles.instructionStep}>
-              <MaterialIcons name="touch-app" size={22} color="#333" />
-              <Text style={styles.instructionText}>Long press anywhere on the map to start</Text>
-            </View>
-            <View style={styles.instructionStep}>
-              <MaterialIcons name="add-location" size={22} color="#333" />
-              <Text style={styles.instructionText}>Tap to add points (minimum 4)</Text>
-            </View>
-            <View style={styles.instructionStep}>
-              <MaterialIcons name="check-circle" size={22} color="#333" />
-              <Text style={styles.instructionText}>Tap Finish when done</Text>
-            </View>
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.backButtonContainer}>
             <TouchableOpacity 
-              style={styles.closeInstructionsButton}
-              onPress={() => setShowInstructions(false)}
+              style={styles.backButton} 
+              onPress={() => router.back()}
             >
-              <Text style={styles.closeButtonText}>Got it!</Text>
+              <Ionicons name="chevron-back" size={24} color={colors.white} />
             </TouchableOpacity>
           </View>
-        )}
-        
-        {isDrawing ? (
-          <View style={styles.drawingControls}>
-            <Text style={styles.drawingText}>
-              {points.length === 0 ? 
-                "Tap on map to add points" : 
-                `Points: ${points.length}/4 (minimum)`}
-            </Text>
-            <View style={styles.drawingButtons}>
-              <TouchableOpacity
-                style={[styles.drawingButton, styles.cancelButton]}
-                onPress={cancelDrawing}
+          <Text style={styles.title}>Safe Zones</Text>
+        </View>
+    
+        <View style={styles.mapContainer}>
+          <MapView
+            style={styles.map}
+            region={mapRegion}
+            onPress={handleMapPress}
+            onLongPress={isDrawing ? undefined : startDrawing}
+            scrollEnabled={true}
+            zoomEnabled={true}
+          >
+            {/* Display current territory */}
+            {currentTerritory && (
+              <Polygon
+                coordinates={currentTerritory.coordinates}
+                fillColor="rgba(255, 200, 0, 0.3)"
+                strokeColor={colors.yellow}
+                strokeWidth={2}
+              />
+            )}
+    
+            {/* Display other territories */}
+            {territories
+              .filter(t => !currentTerritory || t._id !== currentTerritory._id)
+              .map(territory => (
+                <Polygon
+                  key={territory._id}
+                  coordinates={territory.coordinates}
+                  fillColor="rgba(200, 200, 200, 0.2)"
+                  strokeColor="#BDBDBD"
+                  strokeWidth={1}
+                />
+              ))}
+    
+            {/* Display points being drawn */}
+            {isDrawing && points.map((point, index) => (
+              <Marker
+                key={index}
+                coordinate={point}
+                pinColor={colors.yellow}
+              />
+            ))}
+    
+            {/* Display line for current drawing */}
+            {isDrawing && points.length > 1 && (
+              <Polygon
+                coordinates={points}
+                fillColor="rgba(255, 200, 0, 0.3)"
+                strokeColor={colors.yellow}
+                strokeWidth={2}
+              />
+            )}
+          </MapView>
+    
+          {/* Help button */}
+          <TouchableOpacity
+            style={[styles.helpButton, { backgroundColor: 'white', borderRadius: 50, padding: 8 }]}
+            onPress={() => setShowInstructions(!showInstructions)}
+          >
+            <MaterialIcons name="help-outline" size={24} color={colors.yellow} />
+          </TouchableOpacity>
+    
+          {/* Instructions overlay */}
+          {showInstructions && (
+            <View style={styles.instructionsOverlay}>
+              <Text style={styles.instructionsTitle}>How to Create a Safe Zone:</Text>
+              <View style={styles.instructionStep}>
+                <MaterialIcons name="touch-app" size={22} color="#333" />
+                <Text style={styles.instructionText}>Long press anywhere on the map to start</Text>
+              </View>
+              <View style={styles.instructionStep}>
+                <MaterialIcons name="add-location" size={22} color="#333" />
+                <Text style={styles.instructionText}>Tap to add points (minimum 4)</Text>
+              </View>
+              <View style={styles.instructionStep}>
+                <MaterialIcons name="check-circle" size={22} color="#333" />
+                <Text style={styles.instructionText}>Tap Finish when done</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeInstructionsButton}
+                onPress={() => setShowInstructions(false)}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.drawingButton,
-                  styles.finishButton,
-                  points.length < 4 && styles.disabledButton
-                ]}
-                onPress={finishDrawing}
-                disabled={points.length < 4}
-              >
-                <Text style={styles.buttonText}>Finish</Text>
+                <Text style={styles.closeButtonText}>Got it!</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={startDrawing}
-          >
-            <MaterialIcons name="add-location" size={24} color="#FFF" />
-            <Text style={styles.addButtonText}>Draw Safe Zone</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <View style={styles.territoriesList}>
-        <Text style={styles.listTitle}>My Safe Zones</Text>
-        {territories.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="map-marker-radius" size={60} color="#BDBDBD" />
-            <Text style={styles.emptyText}>
-              No safe zones yet. Create one by tapping "Draw Safe Zone".
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={territories}
-            renderItem={renderTerritoryItem}
-            keyExtractor={item => item._id}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
-      
-      {/* Modal for naming territory */}
-      <Modal
-        visible={modalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => !isSaving && setModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Save Safe Zone</Text>
-              
-              <TextInput
-                style={styles.input}
-                placeholder="Name (required)"
-                value={name}
-                onChangeText={setName}
-                editable={!isSaving}
-              />
-              
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Description (optional)"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                editable={!isSaving}
-              />
-              
-              {animals.length > 0 ? (
-                <View style={styles.selectContainer}>
-                  <Text style={styles.selectLabel}>Select Animal:</Text>
-                  <View style={styles.animalOptions}>
-                    {animals.map(animal => (
-                      <TouchableOpacity
-                        key={animal._id}
-                        style={[
-                          styles.animalOption,
-                          selectedAnimal === animal._id && styles.selectedAnimalOption
-                        ]}
-                        onPress={() => !isSaving && setSelectedAnimal(animal._id)}
-                        disabled={isSaving}
-                      >
-                        <Text
-                          style={[
-                            styles.animalOptionText,
-                            selectedAnimal === animal._id && styles.selectedAnimalOptionText
-                          ]}
-                        >
-                          {animal.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <Text style={styles.errorText}>No animals found</Text>
-              )}
-              
-              <View style={styles.modalButtons}>
+          )}
+    
+          {/* Drawing Controls */}
+          {isDrawing ? (
+            <View style={styles.drawingControls}>
+              <Text style={styles.drawingText}>
+                {points.length === 0 ? 
+                  "Tap on map to add points" : 
+                  `Points: ${points.length}/4 (minimum)`}
+              </Text>
+              <View style={styles.drawingButtons}>
                 <TouchableOpacity
-                  style={[
-                    styles.modalButton, 
-                    styles.cancelButton,
-                    isSaving && styles.disabledButton
-                  ]}
-                  onPress={() => !isSaving && setModalVisible(false)}
-                  disabled={isSaving}
+                  style={[styles.drawingButton, styles.cancelButton]}
+                  onPress={cancelDrawing}
                 >
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
-                    styles.modalButton, 
-                    styles.saveButton,
-                    isSaving && styles.disabledButton
+                    styles.drawingButton,
+                    styles.finishButton,
+                    points.length < 4 && styles.disabledButton
                   ]}
-                  onPress={saveTerritory}
-                  disabled={isSaving}
+                  onPress={finishDrawing}
+                  disabled={points.length < 4}
                 >
-                  {isSaving ? (
-                    <ActivityIndicator size="small" color="#FFF" />
-                  ) : (
-                    <Text style={styles.buttonText}>Save</Text>
-                  )}
+                  <Text style={styles.buttonText}>Finish</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={startDrawing}
+            >
+              <MaterialIcons name="add-location" size={24} color="#FFF" />
+              <Text style={styles.addButtonText}>Draw Safe Zone</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+    
+        {/* Safe Zones List */}
+        <View style={styles.territoriesList}>
+          <Text style={styles.listTitle}>Pet Safe Zones</Text>
+          {territories.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons name="map-marker-radius" size={60} color="#BDBDBD" />
+              <Text style={styles.emptyText}>
+                No safe zones yet. Create one by tapping "Draw Safe Zone".
+              </Text>
+            </View>
+          ) : (
+            <View>
+              {territories.map(item => (
+                <View key={item._id}>
+                  {renderTerritoryItem({ item })}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+    
+        {/* Modal for naming territory */}
+        <Modal
+          visible={modalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => !isSaving && setModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Save Safe Zone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Name (required)"
+                  value={name}
+                  onChangeText={setName}
+                  editable={!isSaving}
+                />
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Description (optional)"
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  editable={!isSaving}
+                />
+                {animals.length > 0 ? (
+                  <View style={styles.selectContainer}>
+                    <Text style={styles.selectLabel}>Select Animal:</Text>
+                    <View style={styles.animalOptions}>
+                      {animals.map(animal => (
+                        <TouchableOpacity
+                          key={animal._id}
+                          style={[
+                            styles.animalOption,
+                            selectedAnimal === animal._id && styles.selectedAnimalOption
+                          ]}
+                          onPress={() => !isSaving && setSelectedAnimal(animal._id)}
+                          disabled={isSaving}
+                        >
+                          <Text
+                            style={[
+                              styles.animalOptionText,
+                              selectedAnimal === animal._id && styles.selectedAnimalOptionText
+                            ]}
+                          >
+                            {animal.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.errorText}>No animals found</Text>
+                )}
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton, 
+                      styles.cancelButton,
+                      isSaving && styles.disabledButton
+                    ]}
+                    onPress={() => !isSaving && setModalVisible(false)}
+                    disabled={isSaving}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton, 
+                      styles.saveButton,
+                      isSaving && styles.disabledButton
+                    ]}
+                    onPress={saveTerritory}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={styles.buttonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </View>
+    </ScrollView>
   );
+  
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.yellow,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Centers the title
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    backgroundColor: colors.yellow,
   },
-  backButton: {
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+  
+  backButtonContainer: {
+    position: 'absolute',
+    left: 16,
   },
+  
   placeholder: {
     width: 40,
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 30, // Position it above the tracker card
   },
   mapContainer: {
-    height: 350,
+    height: 450,
     margin: 16,
     borderRadius: 16,
     overflow: 'hidden',
@@ -851,8 +848,9 @@ const styles = StyleSheet.create({
   addButton: {
     position: 'absolute',
     bottom: 16,
-    left: 16,
-    backgroundColor: colors.yellow,
+    left: '45%', // Centers the button horizontally
+    transform: [{ translateX: -65 }], // Adjust this value to half of the button's width (for a 130px width button)
+    backgroundColor: colors.black,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
@@ -864,11 +862,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 5,
   },
-  addButtonText: {
-    color: '#FFF',
+addButtonText: {
+    color: colors.white,
     marginLeft: 10,
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '600',
+    fontSize: 14,
   },
   drawingControls: {
     position: 'absolute',
@@ -887,19 +885,19 @@ const styles = StyleSheet.create({
   drawingText: {
     textAlign: 'center',
     marginBottom: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
-    color: '#333',
+    color: colors.black,
   },
   drawingButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   drawingButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    minWidth: 130,
+    paddingVertical: 8, // Reduced padding
+    paddingHorizontal: 16, // Reduced padding
+    borderRadius: 10, // Slightly smaller border radius
+    minWidth: 105, // Reduced min width
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
@@ -908,7 +906,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   cancelButton: {
-    backgroundColor: '#FF5252',
+    backgroundColor: colors.black,
   },
   finishButton: {
     backgroundColor: colors.yellow,
@@ -917,9 +915,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 14,
   },
   territoriesList: {
     flex: 1,
@@ -927,11 +925,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   listTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     marginBottom: 16,
     color: '#333',
-    marginTop: 8,
+    textAlign: 'center',
   },
   emptyText: {
     textAlign: 'center',
@@ -1014,10 +1012,10 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 24,
     textAlign: 'center',
-    color: '#333',
+    color: colors.black,
   },
   input: {
     backgroundColor: '#F5F5F5',
@@ -1074,23 +1072,18 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
   },
   modalButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    minWidth: 130,
+    paddingVertical: 10,  // Reduced padding for a smaller button
+    paddingHorizontal: 20,  // Reduced padding for a smaller button
+    borderRadius: 10,  // Slightly smaller border radius
+    minWidth: 115,  // Reduced minWidth to make the button smaller
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
   },
-  saveButton: {
+saveButton: {
     backgroundColor: colors.yellow,
   },
+
   helpButton: {
     position: 'absolute',
     top: 16,
@@ -1123,19 +1116,20 @@ const styles = StyleSheet.create({
   },
   instructionsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
     marginBottom: 12,
-    color: '#333',
+    fontWeight: '600',
+    color: colors.black,
     textAlign: 'center',
   },
   instructionStep: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 6,
+    marginRight: 10,
   },
   instructionText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 14,
+    color: colors.black,
     marginLeft: 10,
   },
   closeInstructionsButton: {
@@ -1148,8 +1142,8 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '600',
+    fontSize: 15,
   },
   emptyContainer: {
     flex: 1,

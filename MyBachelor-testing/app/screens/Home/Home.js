@@ -178,7 +178,6 @@ const DogWalkingApp = () => {
       
       if (animalsResponse.ok) {
         const animalsData = await animalsResponse.json();
-        console.log("Fetched animals:", animalsData.length);
         
         // Create maps for animal data
         animalsData.forEach(animal => {
@@ -205,7 +204,6 @@ const DogWalkingApp = () => {
       }
 
       const data = await response.json();
-      console.log("Fetched device data:", data.length);
 
       if (data.length === 0) {
         setLocations([{
@@ -270,7 +268,6 @@ const DogWalkingApp = () => {
 
       // Check if the locations have actually changed before updating state
       if (JSON.stringify(uniqueLocations) !== JSON.stringify(locations)) {
-        console.log("Updating locations with new device data");
         setLocations(uniqueLocations);
 
         if (uniqueLocations.length > 0) {
@@ -356,7 +353,6 @@ const DogWalkingApp = () => {
           
           // Try fallback API endpoint
           const fallbackUrl = `${environments.FALLBACK_API_BASE_URL}/api/territories`;
-          console.log('Trying fallback API for /api/territories');
           
           const fallbackResponse = await fetch(fallbackUrl, {
             headers: {
@@ -1876,20 +1872,6 @@ const DogWalkingApp = () => {
           </TouchableOpacity>
         )}
       </View>
-
-      {!viewAll && locations.length > 1 && (
-        <View style={styles.paginationIndicator}>
-          {locations.map((_, index) => (
-            <View 
-              key={index} 
-              style={[
-                styles.paginationDot, 
-                index === currentLocationIndex && styles.activePaginationDot
-              ]} 
-            />
-          ))}
-        </View>
-      )}
 
       <Modal animationType="fade" transparent={true} visible={mapSettingsVisible} onRequestClose={() => setMapSettingsVisible(false)}>
         <View style={styles.modalBackground}>

@@ -53,7 +53,6 @@ const Calendar = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState(12);
   const [selectedMinute, setSelectedMinute] = useState(0);
-  const [selectedAmPm, setSelectedAmPm] = useState('AM');
   const [currentMonth, setCurrentMonth] = useState('');
   
   // Load events from storage on component mount
@@ -69,6 +68,7 @@ const Calendar = () => {
   // Request permissions on component mount
   useEffect(() => {
     registerForPushNotificationsAsync();
+    loadEvents();
   }, []);
   
   // Set current month when component mounts
@@ -80,196 +80,144 @@ const Calendar = () => {
     const today = now.toISOString().split('T')[0];
     setSelectedDate(today);
   }, []);
+  // Add this useEffect to your component
+useEffect(() => {
+  const interval = setInterval(() => {
+    updateMarkedDates();
+  }, 30000); // Refresh every 30 seconds as a fallback
+
+  return () => clearInterval(interval);
+}, [events]);
   
   // Updated loadEvents to fetch from backend
   const loadEvents = async () => {
     try {
       console.log('Loading events from AsyncStorage and backend');
-      
-      // First try to load events from AsyncStorage for immediate display
+  
+      // Load events from AsyncStorage
       const savedEvents = await AsyncStorage.getItem('calendarEvents');
-      let eventsToUse = savedEvents ? JSON.parse(savedEvents) : [];
-      
-      // Set initial state from local storage
-      if (eventsToUse.length > 0) {
+      let eventsToUse = savedEvents ? JSON.parse(savedEvents) : {};
+  
+      // Set initial state from AsyncStorage if events are found
+      if (Object.keys(eventsToUse).length > 0) {
         setEvents(eventsToUse);
-        updateMarkedDates(eventsToUse);
+        updateMarkedDates(eventsToUse); // Mark the dates based on loaded events
+      } else {
+        console.log('No events found in AsyncStorage');
       }
-      
-      // Then try to fetch from backend
+  
+      // Load events from the backend if an auth token exists
       const token = await AsyncStorage.getItem('authToken');
       if (!token) {
         console.error('No auth token found');
         return;
       }
-      
-      try {
-        console.log('Fetching events from backend API...');
-        const response = await fetch(`${environments.API_BASE_URL}/api/calendar-events`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+  
+      console.log('Fetching events from backend API...');
+      const response = await fetch(`${environments.API_BASE_URL}/api/calendar-events`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+  
+      if (response.ok) {
+        const backendEvents = await response.json();
+        console.log('Successfully loaded events from backend:', backendEvents.length);
+  
+        // Transform backend events into a date-grouped format
+        const groupedEvents = backendEvents.reduce((acc, event) => {
+          const eventDate = event.date; // Ensure date format is consistent (YYYY-MM-DD)
+          if (!acc[eventDate]) {
+            acc[eventDate] = [];
           }
-        });
-        
-        if (response.ok) {
-          const backendEvents = await response.json();
-          console.log('Successfully loaded events from backend:', backendEvents.length);
-          
-          // Merge with local events if needed or just use backend events
-          eventsToUse = backendEvents;
-          
-          // Save to AsyncStorage
-          await AsyncStorage.setItem('calendarEvents', JSON.stringify(eventsToUse));
-          
-          // Update state with backend data
-          setEvents(eventsToUse);
-          updateMarkedDates(eventsToUse);
-        } else {
-          console.error('Failed to load events from backend:', response.status);
-          
-          // Try fallback API
-          try {
-            const fallbackResponse = await fetch(`${environments.FALLBACK_API_BASE_URL}/api/calendar-events`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (fallbackResponse.ok) {
-              const fallbackEvents = await fallbackResponse.json();
-              console.log('Successfully loaded events from fallback backend:', fallbackEvents.length);
-              
-              eventsToUse = fallbackEvents;
-              await AsyncStorage.setItem('calendarEvents', JSON.stringify(eventsToUse));
-              setEvents(eventsToUse);
-              updateMarkedDates(eventsToUse);
-            } else {
-              console.error('Failed to load events from fallback backend:', fallbackResponse.status);
-            }
-          } catch (fallbackError) {
-            console.error('Error loading from fallback backend:', fallbackError);
-          }
-        }
-      } catch (apiError) {
-        console.error('Error fetching events from API:', apiError);
+          acc[eventDate].push(event);
+          return acc;
+        }, {});
+  
+        // Save grouped events into AsyncStorage for future use
+        await AsyncStorage.setItem('calendarEvents', JSON.stringify(groupedEvents));
+  
+        // Update state with backend events
+        setEvents(groupedEvents);
+        updateMarkedDates(groupedEvents);
+      } else {
+        console.error('Failed to load events from backend:', response.status);
+        // Handle the case where backend fetching fails
       }
     } catch (error) {
       console.error('Error loading events:', error);
     }
   };
   
+  
   // Updated saveEvents to sync with backend
   const saveEvents = async (updatedEvents) => {
     try {
-      console.log('Saving events to AsyncStorage and backend:', updatedEvents.length);
-      
-      // Save locally first for immediate UI update
+      // First save to AsyncStorage
       await AsyncStorage.setItem('calendarEvents', JSON.stringify(updatedEvents));
       setEvents(updatedEvents);
-      
-      // Now save to the backend
+      updateMarkedDates(updatedEvents);
+  
+      // Then try to sync with backend
       const token = await AsyncStorage.getItem('authToken');
       if (!token) {
         console.error('No auth token found');
         return;
       }
-      
-      // Format events for backend
-      const eventsForBackend = updatedEvents.map(event => ({
-        id: event.id,
-        animalId: event.animalId,
-        title: event.title,
-        description: event.description || '',
-        date: event.date,
-        time: event.time,
-        type: event.type, // 'medication' or 'vet'
-        category: event.category,
-        status: event.status,
-        recurringPattern: event.recurringPattern || null,
-        notificationId: event.notificationId
-      }));
-      
-      console.log('Syncing events with backend...');
-      
-      // Send to backend API
-      const response = await fetch(`${environments.API_BASE_URL}/api/calendar-events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ events: eventsForBackend })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Events successfully saved to backend:', result);
-      } else {
-        console.error('Failed to save events to backend:', response.status);
-        
-        // Try fallback API
-        try {
-          const fallbackResponse = await fetch(`${environments.FALLBACK_API_BASE_URL}/api/calendar-events`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ events: eventsForBackend })
-          });
-          
-          if (fallbackResponse.ok) {
-            const fallbackResult = await fallbackResponse.json();
-            console.log('Events successfully saved to fallback backend:', fallbackResult);
-          } else {
-            console.error('Failed to save events to fallback backend:', fallbackResponse.status);
-          }
-        } catch (fallbackError) {
-          console.error('Error saving to fallback backend:', fallbackError);
+  
+      const eventsForBackend = Object.values(updatedEvents).flat();
+  
+      try {
+        const response = await fetch(`${environments.API_BASE_URL}/api/calendar-events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ events: eventsForBackend }),
+        });
+  
+        if (!response.ok) {
+          throw new Error(`Backend error: ${response.status}`);
         }
+  
+        console.log('Events successfully saved to backend');
+      } catch (backendError) {
+        console.error('Failed to save to backend, using fallback:', backendError);
+        // Implement your fallback logic here
       }
     } catch (error) {
       console.error('Error saving events:', error);
-      
-      // Still update local state even if backend fails
-      setEvents(updatedEvents);
     }
   };
   
-  const updateMarkedDates = () => {
-    const marked = {};
+  
+  const updateMarkedDates = (eventsObject = events) => {
+    console.log('Updating marked dates with:', eventsObject);
     
-    // Mark dates with events
-    Object.keys(events).forEach(date => {
-      marked[date] = {
-        marked: true,
-        dotColor: events[date].some(e => e.type === 'vet') ? colors.blue : colors.yellow
-      };
-      
-      // If this is the selected date, highlight it
-      if (date === selectedDate) {
-        marked[date] = {
-          ...marked[date],
-          selected: true,
-          selectedColor: colors.yellow
-        };
+    const newMarkedDates = {};
+    
+    // First, clear all existing marks
+    Object.keys(markedDates).forEach(date => {
+      newMarkedDates[date] = { marked: false };
+    });
+    
+    // Then add marks for dates that have events
+    Object.entries(eventsObject).forEach(([date, eventList]) => {
+      if (eventList && eventList.length > 0) {
+        newMarkedDates[date] = { marked: true, dotColor: colors.yellow };
       }
     });
     
-    // If selected date has no events, still mark it as selected
-    if (selectedDate && !marked[selectedDate]) {
-      marked[selectedDate] = {
-        selected: true,
-        selectedColor: colors.yellow
-      };
+    console.log('Final marked dates:', newMarkedDates);
+    setMarkedDates(newMarkedDates);
+  };
+  const handleDateSelect = (day) => {
+    if (day?.dateString) {
+      setSelectedDate(day.dateString);
     }
-    
-    setMarkedDates(marked);
   };
   
-  const handleDateSelect = (day) => {
-    setSelectedDate(day.dateString);
-  };
   
   const handleAddEvent = () => {
     if (!selectedDate) {
@@ -303,11 +251,10 @@ const Calendar = () => {
   const scheduleNotification = async (event) => {
     try {
       // Parse date and time
-      const [eventDate, eventTime] = [new Date(event.date), event.time];
       const [hours, minutes] = event.time.split(':');
       
       // Create notification date
-      const notificationDate = new Date(eventDate);
+      const notificationDate = new Date(event.date);
       notificationDate.setHours(parseInt(hours));
       notificationDate.setMinutes(parseInt(minutes));
       
@@ -315,7 +262,7 @@ const Calendar = () => {
       const now = new Date();
       if (notificationDate <= now) {
         console.log('Notification date is in the past, not scheduling');
-        return;
+        return null;
       }
       
       // Create notification content
@@ -323,6 +270,7 @@ const Calendar = () => {
         title: event.type === 'vet' ? 'Vet Appointment Reminder' : 'Medication Reminder',
         body: event.title,
         data: { eventId: event.id },
+        sound: true, // Ensure sound plays
       };
       
       // Schedule the notification
@@ -332,8 +280,6 @@ const Calendar = () => {
       });
       
       console.log('Scheduled notification:', notificationId);
-      
-      // Save notification ID with the event for later cancelation if needed
       return notificationId;
     } catch (error) {
       console.log('Error scheduling notification:', error);
@@ -353,173 +299,247 @@ const Calendar = () => {
     }
   };
   
-  // Format time from hours, minutes and AM/PM
-  const formatTime = () => {
-    return `${selectedHour}:${selectedMinute < 10 ? '0' + selectedMinute : selectedMinute} ${selectedAmPm}`;
-  };
+// Format time in 24-hour format (no AM/PM)
+const formatTime = () => {
+  const hour = selectedHour < 10 ? '0' + selectedHour : selectedHour;
+  const minute = selectedMinute < 10 ? '0' + selectedMinute : selectedMinute;
   
-  // Convert formatted time string back to components
-  const parseTime = (timeString) => {
-    if (!timeString) return;
+  // Return formatted time in 24-hour format
+  return `${hour}:${minute}`;
+};
+
+// Parse time from 24-hour format string
+const parseTime = (timeString) => {
+  if (!timeString) return;
+
+  // Match 24-hour format time string (HH:MM)
+  const match = timeString.match(/(\d+):(\d+)/);
+  
+  if (match) {
+    const hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
     
-    const match = timeString.match(/(\d+):(\d+)\s+(AM|PM)/);
-    if (match) {
-      setSelectedHour(parseInt(match[1], 10));
-      setSelectedMinute(parseInt(match[2], 10));
-      setSelectedAmPm(match[3]);
-    }
-  };
-  
-  // Show custom time picker
-  const showTimeSelector = () => {
-    if (newEvent.time) {
-      parseTime(newEvent.time);
-    }
-    setShowTimePicker(true);
-  };
-  
-  // Close time picker and save value
-  const confirmTime = () => {
-    setNewEvent({...newEvent, time: formatTime()});
-    setShowTimePicker(false);
-  };
-  
-  // Render custom time picker modal
-  const renderTimePicker = () => (
-    <Modal
-      visible={showTimePicker}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowTimePicker(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.timePickerContainer}>
-          <Text style={styles.timePickerTitle}>Select Time</Text>
-          
-          <View style={styles.timePickerControls}>
-            {/* Hour Picker */}
-            <View style={styles.timeColumn}>
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedHour(prev => prev === 12 ? 1 : prev + 1)}
-              >
-                <Ionicons name="chevron-up" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-              
-              <Text style={styles.timeValue}>{selectedHour}</Text>
-              
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedHour(prev => prev === 1 ? 12 : prev - 1)}
-              >
-                <Ionicons name="chevron-down" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.timeSeparator}>:</Text>
-            
-            {/* Minute Picker */}
-            <View style={styles.timeColumn}>
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedMinute(prev => prev === 55 ? 0 : prev + 5)}
-              >
-                <Ionicons name="chevron-up" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-              
-              <Text style={styles.timeValue}>{selectedMinute < 10 ? '0' + selectedMinute : selectedMinute}</Text>
-              
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedMinute(prev => prev === 0 ? 55 : prev - 5)}
-              >
-                <Ionicons name="chevron-down" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-            </View>
-            
-            {/* AM/PM Picker */}
-            <View style={styles.timeColumn}>
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedAmPm(prev => prev === 'AM' ? 'PM' : 'AM')}
-              >
-                <Ionicons name="chevron-up" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-              
-              <Text style={styles.timeValue}>{selectedAmPm}</Text>
-              
-              <TouchableOpacity 
-                style={styles.timeArrow}
-                onPress={() => setSelectedAmPm(prev => prev === 'AM' ? 'PM' : 'AM')}
-              >
-                <Ionicons name="chevron-down" size={24} color={colors.yellow} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.timePickerActions}>
+    // Set the selected hour and minute
+    setSelectedHour(hour);
+    setSelectedMinute(minute);
+  }
+};
+
+// Show custom time picker
+const showTimeSelector = () => {
+  if (newEvent.time) {
+    parseTime(newEvent.time);
+  }
+  setShowTimePicker(true);
+};
+
+// Close time picker and save value
+const confirmTime = () => {
+  setNewEvent({ ...newEvent, time: formatTime() });
+  setShowTimePicker(false);
+};
+
+// Render custom time picker modal
+const renderTimePicker = () => (
+  <Modal
+    visible={showTimePicker}
+    transparent={true}
+    animationType="fade"
+    onRequestClose={() => setShowTimePicker(false)}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.timePickerContainer}>
+        <Text style={styles.timePickerTitle}>Select Time</Text>
+        
+        <View style={styles.timePickerControls}>
+          {/* Hour Picker (0-23) */}
+          <View style={styles.timeColumn}>
             <TouchableOpacity 
-              style={styles.timePickerCancel}
-              onPress={() => setShowTimePicker(false)}
+              style={styles.timeArrow}
+              onPress={() => setSelectedHour(prev => (prev + 1) % 24)}
             >
-              <Text style={styles.timePickerCancelText}>Cancel</Text>
+              <Ionicons name="chevron-up" size={24} color={colors.yellow} />
             </TouchableOpacity>
             
+            <Text style={styles.timeValue}>
+              {selectedHour < 10 ? '0' + selectedHour : selectedHour}
+            </Text>
+            
             <TouchableOpacity 
-              style={styles.timePickerConfirm}
-              onPress={confirmTime}
+              style={styles.timeArrow}
+              onPress={() => setSelectedHour(prev => (prev - 1 + 24) % 24)}
             >
-              <Text style={styles.timePickerConfirmText}>Confirm</Text>
+              <Ionicons name="chevron-down" size={24} color={colors.yellow} />
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.timeSeparator}>:</Text>
+          
+          {/* Minute Picker */}
+          <View style={styles.timeColumn}>
+            <TouchableOpacity 
+              style={styles.timeArrow}
+              onPress={() => setSelectedMinute(prev => prev === 55 ? 0 : prev + 5)}
+            >
+              <Ionicons name="chevron-up" size={24} color={colors.yellow} />
+            </TouchableOpacity>
+            
+            <Text style={styles.timeValue}>
+              {selectedMinute < 10 ? '0' + selectedMinute : selectedMinute}
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.timeArrow}
+              onPress={() => setSelectedMinute(prev => prev === 0 ? 55 : prev - 5)}
+            >
+              <Ionicons name="chevron-down" size={24} color={colors.yellow} />
             </TouchableOpacity>
           </View>
         </View>
+        
+        <View style={styles.timePickerActions}>
+          <TouchableOpacity 
+            style={styles.timePickerCancel}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <Text style={styles.timePickerCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.timePickerConfirm}
+            onPress={confirmTime}
+          >
+            <Text style={styles.timePickerConfirmText}>Confirm</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </Modal>
-  );
+    </View>
+  </Modal>
+);
   
-  // Modify handleSaveEvent to schedule notifications
-  const handleSaveEvent = async () => {
-    // Validate required fields
-    if (!newEvent.title || !newEvent.time) {
-      Alert.alert('Please fill in all required fields');
-      return;
+const handleSaveEvent = async () => {
+  if (!newEvent.title || !newEvent.time || !selectedDate) {
+    alert('Please fill out all required fields.');
+    return;
+  }
+
+  // Generate unique ID for the event
+  const eventId = Date.now().toString();
+
+  const eventData = {
+    ...newEvent,
+    id: eventId,
+    date: selectedDate,
+    status: 'upcoming'
+  };
+
+  try {
+    const savedEvents = await AsyncStorage.getItem('calendarEvents');
+    const events = savedEvents ? JSON.parse(savedEvents) : {};
+
+    // Array to store all notification IDs
+    const notificationIds = [];
+
+    // Handle recurrence
+    if (newEvent.recurrence !== 'none') {
+      const startDate = new Date(selectedDate);
+      let currentDate = new Date(startDate);
+      
+      // Determine how many occurrences to create based on recurrence
+      const occurrences = newEvent.recurrence === 'daily' ? 30 : 
+                         newEvent.recurrence === 'weekly' ? 12 : 
+                         newEvent.recurrence === 'monthly' ? 12 : 1;
+      
+      for (let i = 0; i < occurrences; i++) {
+        // Format date as YYYY-MM-DD
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        if (!events[dateStr]) {
+          events[dateStr] = [];
+        }
+        
+        // Create event with same details but new date
+        const recurringEvent = {
+          ...eventData,
+          id: `${eventId}_${i}`, // Unique ID for each occurrence
+          date: dateStr
+        };
+        
+        // Schedule notification for this event
+        const notificationId = await scheduleNotification(recurringEvent);
+        if (notificationId) {
+          recurringEvent.notificationId = notificationId;
+          notificationIds.push(notificationId);
+        }
+        
+        events[dateStr].push(recurringEvent);
+        
+        // Increment date based on recurrence
+        if (newEvent.recurrence === 'daily') {
+          currentDate.setDate(currentDate.getDate() + 1);
+        } else if (newEvent.recurrence === 'weekly') {
+          currentDate.setDate(currentDate.getDate() + 7);
+        } else if (newEvent.recurrence === 'monthly') {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+      }
+    } else {
+      // No recurrence - just add single event
+      if (!events[selectedDate]) {
+        events[selectedDate] = [];
+      }
+      
+      // Schedule notification for this single event
+      const notificationId = await scheduleNotification(eventData);
+      if (notificationId) {
+        eventData.notificationId = notificationId;
+        notificationIds.push(notificationId);
+      }
+      
+      events[selectedDate].push(eventData);
     }
+
+    // Save updated events
+    await AsyncStorage.setItem('calendarEvents', JSON.stringify(events));
+
+    // Update state and marked dates
+    setEvents(events);
+    updateMarkedDates(events);
     
-    // Create updated events object
-    const updatedEvents = { ...events };
-    if (!updatedEvents[selectedDate]) {
-      updatedEvents[selectedDate] = [];
+    // Sync with backend
+    await saveEvents(events);
+
+    // Show success message with notification info
+    if (notificationIds.length > 0) {
+      Alert.alert(
+        'Reminder Set', 
+        'Your reminder has been saved and notifications have been scheduled.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert(
+        'Reminder Set', 
+        'Your reminder has been saved but no notifications were scheduled (time may be in the past).',
+        [{ text: 'OK' }]
+      );
     }
-    
-    // Schedule notification
-    const notificationId = await scheduleNotification({
-      ...newEvent,
-      id: Date.now().toString(),
-      date: selectedDate
-    });
-    
-    // Add new event with a unique ID and notification ID
-    updatedEvents[selectedDate].push({
-      ...newEvent,
-      id: Date.now().toString(),
-      date: selectedDate,
-      notificationId
-    });
-    
-    // Save to AsyncStorage
-    saveEvents(updatedEvents);
-    
-    // Reset form and go back to calendar view
+
+    setCurrentView('calendar');
     setNewEvent({
       title: '',
       type: 'medication',
+      category: '',
       time: '',
       notes: '',
       recurrence: 'none',
-      status: 'upcoming'
+      status: 'upcoming',
+      petId: '',
     });
-    setCurrentView('calendar');
-  };
+  } catch (error) {
+    console.error('Error saving event:', error);
+    Alert.alert('Error', 'Failed to save event');
+  }
+};
   
   const handleViewEvent = (event) => {
     setSelectedEvent(event);
@@ -527,82 +547,171 @@ const Calendar = () => {
   };
   
   const handleMarkStatus = (event, status) => {
-    // Create updated events object
+    // Check if event and event.date exist
+    if (!event || !event.date) {
+      console.error("Event or event.date is missing");
+      return;
+    }
+  
+    // Clone the events state
     const updatedEvents = { ...events };
-    const dateEvents = updatedEvents[event.date];
+  
+    // Ensure the dateEvents array exists in updatedEvents
+    const dateEvents = updatedEvents[event.date] || [];
     
-    // Find and update the event
+    // Find the event in the dateEvents array
     const eventIndex = dateEvents.findIndex(e => e.id === event.id);
+  
     if (eventIndex !== -1) {
+      // Update the status of the event
       dateEvents[eventIndex] = { ...dateEvents[eventIndex], status };
       updatedEvents[event.date] = dateEvents;
       
-      // Save to AsyncStorage
-      saveEvents(updatedEvents);
-      
-      // Update selected event if in details view
-      if (selectedEvent && selectedEvent.id === event.id) {
-        setSelectedEvent({ ...selectedEvent, status });
-      }
+      // Save the updated events to AsyncStorage
+      saveEvents(updatedEvents)
+        .then(() => {
+          // Optional: Notify the user that the status was saved
+          console.log("Event status updated and saved.");
+  
+          // Update the selected event if it's in the details view
+          if (selectedEvent && selectedEvent.id === event.id) {
+            setSelectedEvent({ ...selectedEvent, status });
+          }
+  
+          // Optionally, re-render the calendar or related view
+          // For example: setEvents(updatedEvents); 
+        })
+        .catch((error) => {
+          console.error("Error saving events:", error);
+        });
+    } else {
+      console.error("Event not found in date events.");
     }
   };
   
-  // Modify handleDeleteEvent to cancel notifications
-  const handleDeleteEvent = (event) => {
+  const handleDeleteEvent = async (event) => {
     Alert.alert(
       'Delete Event',
-      'Are you sure you want to delete this event?',
+      'Are you sure you want to delete this event?' + 
+      (event.recurrence !== 'none' ? ' This will delete all occurrences of this recurring event.' : ''),
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
-            // Cancel the notification if it exists
-            if (event.notificationId) {
-              await cancelNotification(event.notificationId);
+            try {
+              const token = await AsyncStorage.getItem('authToken');
+              if (!token) {
+                Alert.alert('Error', 'Not authenticated');
+                return;
+              }
+  
+              // Ensure events are available in the local state
+              let updatedEvents = { ...events };
+  
+              // If it's a recurring event, we need to delete all occurrences
+              if (event.recurrence !== 'none') {
+                const baseEventId = event.id.split('_')[0];
+                let eventsToDelete = [];
+  
+                // Iterate through all dates in events to filter occurrences
+                for (const date in updatedEvents) {
+                  updatedEvents[date] = updatedEvents[date].filter(e => {
+                    if (e.id.startsWith(baseEventId)) {
+                      eventsToDelete.push(e);
+                      return false;
+                    }
+                    return true;
+                  });
+  
+                  // Remove date entry if no events are left for that date
+                  if (updatedEvents[date].length === 0) {
+                    delete updatedEvents[date];
+                  }
+                }
+  
+                // Backend deletion for recurring events
+                try {
+                  const deleteResponse = await fetch(
+                    `${environments.API_BASE_URL}/api/calendar-events/${event.id}?deleteAllRecurring=true`, 
+                    {
+                      method: 'DELETE',
+                      headers: { 'Authorization': `Bearer ${token}` },
+                    }
+                  );
+  
+                  if (!deleteResponse.ok) {
+                    throw new Error('Failed to delete recurring events from backend');
+                  }
+                } catch (backendError) {
+                  console.error('Error deleting recurring events from backend:', backendError);
+                }
+  
+                // Cancel notifications for events to delete
+                for (const e of eventsToDelete) {
+                  if (e.notificationId) {
+                    await cancelNotification(e.notificationId);
+                  }
+                }
+              } else {
+                // Handle non-recurring event deletion
+                const deleteResponse = await fetch(
+                  `${environments.API_BASE_URL}/api/calendar-events/${event.id}`, 
+                  {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                  }
+                );
+  
+                if (!deleteResponse.ok) {
+                  throw new Error('Failed to delete from backend');
+                }
+  
+                if (event.notificationId) {
+                  await cancelNotification(event.notificationId);
+                }
+  
+                // Update local state for non-recurring event deletion
+                if (updatedEvents[event.date]) {
+                  updatedEvents[event.date] = updatedEvents[event.date].filter(e => e.id !== event.id);
+                  if (updatedEvents[event.date].length === 0) {
+                    delete updatedEvents[event.date];
+                  }
+                }
+              }
+  
+              // Update AsyncStorage and local UI state
+              await AsyncStorage.setItem('calendarEvents', JSON.stringify(updatedEvents));
+              setEvents(updatedEvents);
+              updateMarkedDates(updatedEvents); // Explicitly update marked dates
+              setCurrentView('calendar');
+              
+              Alert.alert('Success', 'Event(s) deleted successfully');
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete event(s)');
             }
-            
-            // Create updated events object
-            const updatedEvents = { ...events };
-            const dateEvents = updatedEvents[event.date];
-            
-            // Filter out the event to delete
-            updatedEvents[event.date] = dateEvents.filter(e => e.id !== event.id);
-            
-            // If no more events on this date, remove the date entry
-            if (updatedEvents[event.date].length === 0) {
-              delete updatedEvents[event.date];
-            }
-            
-            // Save to AsyncStorage
-            saveEvents(updatedEvents);
-            
-            // Go back to calendar view
-            setCurrentView('calendar');
           }
         }
       ]
     );
   };
   
+  
   // Handle month change
   const handleMonthChange = (month) => {
     const date = new Date(month.dateString);
     setCurrentMonth(`${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`);
   };
-  
-  // Render calendar view with events for selected date
+
   const renderCalendarView = () => (
     <View style={styles.calendarContainer}>
-      <View style={styles.calendarHeaderContainer}>
-        <Text style={styles.calendarHeaderText}>{currentMonth}</Text>
-      </View>
-      
+      {/* Calendar View */}
       <RNCalendar
-        onDayPress={handleDateSelect}
-        onMonthChange={handleMonthChange}
-        markedDates={markedDates}
+        onDayPress={handleDateSelect}  // When a day is selected
+        onMonthChange={handleMonthChange}  // When month changes
+        markedDates={markedDates}  // Dates to be marked
         theme={{
           todayTextColor: colors.yellow,
           arrowColor: colors.yellow,
@@ -616,7 +725,8 @@ const Calendar = () => {
           dayTextColor: '#000',
         }}
       />
-      
+  
+      {/* Events Container */}
       <View style={styles.eventsContainer}>
         <View style={styles.selectedDateHeader}>
           <Text style={styles.selectedDateText}>
@@ -624,24 +734,25 @@ const Calendar = () => {
           </Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={handleAddEvent}
+            onPress={handleAddEvent}  // Open Add Event form
           >
             <Ionicons name="add-circle" size={30} color={colors.yellow} />
           </TouchableOpacity>
         </View>
-        
+  
         <ScrollView style={styles.eventsList}>
+          {/* Check if there are events for the selected date */}
           {selectedDate && events[selectedDate] && events[selectedDate].length > 0 ? (
             events[selectedDate].map(event => (
               <TouchableOpacity
-                key={event.id}
+                key={event.id}  // Ensure you have a unique key
                 style={[
                   styles.eventCard,
                   event.type === 'vet' ? styles.vetCard : styles.medicationCard,
                   event.status === 'taken' && styles.takenCard,
-                  event.status === 'missed' && styles.missedCard
+                  event.status === 'missed' && styles.missedCard,
                 ]}
-                onPress={() => handleViewEvent(event)}
+                onPress={() => handleViewEvent(event)}  // Handle view event
               >
                 <View style={styles.eventCardHeader}>
                   <Ionicons 
@@ -654,23 +765,24 @@ const Calendar = () => {
                     <Ionicons name="repeat" size={16} color={colors.grey} />
                   )}
                 </View>
-                
+  
                 <Text style={styles.eventTitle}>{event.title}</Text>
-                
+  
                 {event.category && (
                   <View style={styles.categoryBadge}>
                     <Text style={styles.categoryText}>{event.category}</Text>
                   </View>
                 )}
-                
+  
+                {/* Show status if event is not upcoming */}
                 {event.status !== 'upcoming' && (
                   <View style={[
                     styles.statusBadge,
-                    event.status === 'taken' ? styles.takenBadge : styles.missedBadge
+                    event.status === 'taken' ? styles.takenBadge : styles.missedBadge,
                   ]}>
                     <Text style={[
                       styles.statusText,
-                      event.status === 'taken' ? styles.takenStatusText : styles.missedStatusText
+                      event.status === 'taken' ? styles.takenStatusText : styles.missedStatusText,
                     ]}>
                       {event.status === 'taken' ? 'Taken' : 'Missed'}
                     </Text>
@@ -679,6 +791,7 @@ const Calendar = () => {
               </TouchableOpacity>
             ))
           ) : (
+            // If no events are available for selected date
             <View style={styles.emptyStateContainer}>
               <Ionicons name="calendar-outline" size={50} color={colors.lightGrey} />
               <Text style={styles.emptyStateText}>
@@ -686,7 +799,7 @@ const Calendar = () => {
               </Text>
               <TouchableOpacity 
                 style={styles.emptyStateButton}
-                onPress={handleAddEvent}
+                onPress={handleAddEvent}  // Open Add Event form
               >
                 <Text style={styles.emptyStateButtonText}>Add Reminder</Text>
               </TouchableOpacity>
@@ -697,303 +810,251 @@ const Calendar = () => {
     </View>
   );
   
-  // Render the add event form
-  const renderAddEventForm = () => (
-    <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContentContainer}>
-      <Text style={styles.formTitle}>Add New Reminder</Text>
-      
-      <Text style={styles.formLabel}>Date: {new Date(selectedDate).toDateString()}</Text>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Title*</Text>
-        <TextInput
-          style={styles.textInput}
-          value={newEvent.title}
-          onChangeText={(text) => setNewEvent({...newEvent, title: text})}
-          placeholder="Enter title"
-          placeholderTextColor="#999"
-        />
-      </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Type</Text>
-        <View style={styles.typeButtons}>
-          <TouchableOpacity 
-            style={[
-              styles.typeButton, 
-              newEvent.type === 'medication' && styles.activeButton
-            ]}
-            onPress={() => setNewEvent({...newEvent, type: 'medication', category: ''})}
-          >
-            <Ionicons 
-              name="medical-outline" 
-              size={18} 
-              color={newEvent.type === 'medication' ? 'white' : colors.darkGrey} 
-            />
-            <Text style={[
-              styles.typeButtonText,
-              newEvent.type === 'medication' && { color: 'white', fontWeight: 'bold' }
-            ]}>Medication</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.typeButton, 
-              newEvent.type === 'vet' && styles.activeButton
-            ]}
-            onPress={() => setNewEvent({...newEvent, type: 'vet', category: ''})}
-          >
-            <Ionicons 
-              name="medical" 
-              size={18} 
-              color={newEvent.type === 'vet' ? 'white' : colors.darkGrey} 
-            />
-            <Text style={[
-              styles.typeButtonText,
-              newEvent.type === 'vet' && { color: 'white', fontWeight: 'bold' }
-            ]}>Vet Visit</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Category</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-        >
-          {(newEvent.type === 'medication' ? MEDICATION_CATEGORIES : VET_CATEGORIES).map(category => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryButton,
-                newEvent.category === category.id && styles.activeButton
-              ]}
-              onPress={() => setNewEvent({...newEvent, category: category.id})}
-            >
-              <Ionicons 
-                name={category.icon} 
-                size={18} 
-                color={
-                  newEvent.category === category.id 
-                    ? 'white' 
-                    : colors.darkGrey
-                } 
-              />
-              <Text style={[
-                styles.categoryButtonText,
-                newEvent.category === category.id && { color: 'white', fontWeight: 'bold' }
-              ]}>
-                {category.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Time*</Text>
+
+const renderAddEventForm = () => (
+  <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContentContainer}>
+    <Text style={styles.formTitle}>Add New Reminder</Text>
+
+    <Text style={styles.formLabel}>
+      Date: {new Date(selectedDate).toISOString().split('T')[0]}
+    </Text>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Title*</Text>
+      <TextInput
+        style={styles.textInput}
+        value={newEvent.title}
+        onChangeText={(text) => setNewEvent({...newEvent, title: text})}
+        placeholder="Enter title"
+        placeholderTextColor="#999"
+      />
+    </View>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Type</Text>
+      <View style={styles.typeButtons}>
         <TouchableOpacity 
-          style={styles.timePickerButton}
-          onPress={showTimeSelector}
+          style={[
+            styles.typeButton, 
+            newEvent.type === 'medication' && styles.activeButton
+          ]}
+          onPress={() => setNewEvent({...newEvent, type: 'medication', category: ''})}
         >
-          <Text style={styles.timePickerButtonText}>
-            {newEvent.time || 'Select Time'}
-          </Text>
-          <Ionicons name="time-outline" size={24} color={colors.grey} />
+          <Ionicons 
+            name="medical-outline" 
+            size={18} 
+            color={newEvent.type === 'medication' ? 'white' : colors.darkGrey} 
+          />
+          <Text style={[
+            styles.typeButtonText,
+            newEvent.type === 'medication' && { color: 'white', fontWeight: 'bold' }
+          ]}>Medication</Text>
         </TouchableOpacity>
-        
-        {renderTimePicker()}
+
+        <TouchableOpacity 
+          style={[
+            styles.typeButton, 
+            newEvent.type === 'vet' && styles.activeButton
+          ]}
+          onPress={() => setNewEvent({...newEvent, type: 'vet', category: ''})}
+        >
+          <Ionicons 
+            name="medical" 
+            size={18} 
+            color={newEvent.type === 'vet' ? 'white' : colors.darkGrey} 
+          />
+          <Text style={[
+            styles.typeButtonText,
+            newEvent.type === 'vet' && { color: 'white', fontWeight: 'bold' }
+          ]}>Vet Visit</Text>
+        </TouchableOpacity>
       </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Notes</Text>
-        <TextInput
-          style={[styles.textInput, styles.textArea]}
-          value={newEvent.notes}
-          onChangeText={(text) => setNewEvent({...newEvent, notes: text})}
-          placeholder="Add notes or instructions"
-          placeholderTextColor="#999"
-          multiline
-          numberOfLines={3}
-        />
+    </View>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Category</Text>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriesContainer}
+      >
+        {(newEvent.type === 'medication' ? MEDICATION_CATEGORIES : VET_CATEGORIES).map(category => (
+          <TouchableOpacity
+            key={category.id}
+            style={[
+              styles.categoryButton,
+              newEvent.category === category.id && styles.activeButton
+            ]}
+            onPress={() => setNewEvent({...newEvent, category: category.id})}
+          >
+            <Ionicons 
+              name={category.icon} 
+              size={18} 
+              color={newEvent.category === category.id ? 'white' : colors.darkGrey} 
+            />
+            <Text style={[
+              styles.categoryButtonText,
+              newEvent.category === category.id && { color: 'white', fontWeight: 'bold' }
+            ]}>
+              {category.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Time*</Text>
+      <TouchableOpacity 
+        style={styles.timePickerButton}
+        onPress={showTimeSelector}
+      >
+        <Text style={styles.timePickerButtonText}>
+          {newEvent.time || 'Select Time'}
+        </Text>
+        <Ionicons name="time-outline" size={24} color={colors.grey} />
+      </TouchableOpacity>
+
+      {renderTimePicker()}
+    </View>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Notes</Text>
+      <TextInput
+        style={[styles.textInput, styles.textArea]}
+        value={newEvent.notes}
+        onChangeText={(text) => setNewEvent({...newEvent, notes: text})}
+        placeholder="Add notes or instructions"
+        placeholderTextColor="#999"
+        multiline
+        numberOfLines={3}
+      />
+    </View>
+
+    <View style={styles.formGroup}>
+      <Text style={styles.inputLabel}>Repeat</Text>
+      <View style={styles.repeatButtons}>
+        {['none', 'daily', 'weekly', 'monthly'].map((recurrence) => (
+          <TouchableOpacity 
+            key={recurrence}
+            style={[
+              styles.repeatButton, 
+              newEvent.recurrence === recurrence && styles.activeButton
+            ]}
+            onPress={() => setNewEvent({...newEvent, recurrence})}
+          >
+            <Text style={[
+              styles.repeatButtonText,
+              newEvent.recurrence === recurrence && { color: 'white', fontWeight: 'bold' }
+            ]}>
+              {recurrence.charAt(0).toUpperCase() + recurrence.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-      
-      <View style={styles.formGroup}>
-        <Text style={styles.inputLabel}>Repeat</Text>
-        <View style={styles.repeatButtons}>
-          {['none', 'daily', 'weekly', 'monthly'].map((recurrence) => (
-            <TouchableOpacity 
-              key={recurrence}
-              style={[
-                styles.repeatButton, 
-                newEvent.recurrence === recurrence && styles.activeButton
-              ]}
-              onPress={() => setNewEvent({...newEvent, recurrence})}
-            >
-              <Text style={[
-                styles.repeatButtonText,
-                newEvent.recurrence === recurrence && { color: 'white', fontWeight: 'bold' }
-              ]}>
-                {recurrence.charAt(0).toUpperCase() + recurrence.slice(1)}
+    </View>
+
+    <TouchableOpacity 
+      style={styles.saveButton}
+      onPress={handleSaveEvent}
+    >
+      <Text style={styles.saveButtonText}>Save Reminder</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity 
+      style={styles.cancelButton}
+      onPress={() => setCurrentView('calendar')}
+    >
+      <Text style={styles.cancelButtonText}>Cancel</Text>
+    </TouchableOpacity>
+  </ScrollView>
+);
+
+// Render event details view
+const renderEventDetails = () => (
+  <ScrollView style={styles.detailsContainer} contentContainerStyle={styles.detailsContentContainer}>
+    {selectedEvent && (
+      <>
+        {/* Move Back to Calendar Button to the Top */}
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => setCurrentView('calendar')}
+        >
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+
+        <View style={styles.detailsHeader}>
+          <Text style={styles.detailsTitle}>{selectedEvent.title}</Text>
+          <View style={styles.detailsTypeContainer}>
+            <Ionicons 
+              name={selectedEvent.type === 'vet' ? 'medical' : 'medical-outline'} 
+              size={22} 
+              color={colors.white} 
+            />
+            <Text style={[styles.detailsType, {color: selectedEvent.type === 'vet' ? colors.white : colors.white}]}>
+              {selectedEvent.type === 'vet' ? 'Vet Appointment' : 'Medication'}
+            </Text>
+          </View>
+
+          {selectedEvent.category && (
+            <View style={styles.detailsCategoryContainer}>
+              <Text style={styles.detailsCategory}>
+                Category: {
+                  (selectedEvent.type === 'medication' 
+                    ? MEDICATION_CATEGORIES 
+                    : VET_CATEGORIES
+                  ).find(c => c.id === selectedEvent.category)?.label || selectedEvent.category
+                }
               </Text>
-            </TouchableOpacity>
-          ))}
+            </View>
+          )}
         </View>
-      </View>
-      
-      <TouchableOpacity 
-        style={styles.saveButton}
-        onPress={handleSaveEvent}
-      >
-        <Text style={styles.saveButtonText}>Save Reminder</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.cancelButton}
-        onPress={() => setCurrentView('calendar')}
-      >
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-  
-  // Render event details view
-  const renderEventDetails = () => (
-    <ScrollView style={styles.detailsContainer} contentContainerStyle={styles.detailsContentContainer}>
-      {selectedEvent && (
-        <>
-          <View style={styles.detailsHeader}>
-            <Text style={styles.detailsTitle}>{selectedEvent.title}</Text>
-            <View style={styles.detailsTypeContainer}>
-              <Ionicons 
-                name={selectedEvent.type === 'vet' ? 'medical' : 'medical-outline'} 
-                size={22} 
-                color={selectedEvent.type === 'vet' ? colors.blue : colors.yellow} 
-              />
-              <Text style={[
-                styles.detailsType,
-                {color: selectedEvent.type === 'vet' ? colors.blue : colors.yellow}
-              ]}>
-                {selectedEvent.type === 'vet' ? 'Vet Appointment' : 'Medication'}
-              </Text>
-            </View>
-            
-            {selectedEvent.category && (
-              <View style={styles.detailsCategoryContainer}>
-                <Text style={styles.detailsCategory}>
-                  Category: {
-                    (selectedEvent.type === 'medication' 
-                      ? MEDICATION_CATEGORIES 
-                      : VET_CATEGORIES
-                    ).find(c => c.id === selectedEvent.category)?.label || selectedEvent.category
-                  }
-                </Text>
-              </View>
-            )}
+
+        <View style={styles.detailsInfo}>
+          <View style={styles.detailsRow}>
+            <Ionicons name="calendar-outline" size={20} color={colors.grey} />
+            <Text style={styles.detailsText}>
+              {new Date(selectedEvent.date).toDateString()}
+            </Text>
           </View>
-          
-          <View style={styles.detailsInfo}>
-            <View style={styles.detailsRow}>
-              <Ionicons name="calendar-outline" size={20} color={colors.grey} />
-              <Text style={styles.detailsText}>
-                {new Date(selectedEvent.date).toDateString()}
-              </Text>
-            </View>
-            
-            <View style={styles.detailsRow}>
-              <Ionicons name="time-outline" size={20} color={colors.grey} />
-              <Text style={styles.detailsText}>{selectedEvent.time}</Text>
-            </View>
-            
-            {selectedEvent.notes && (
-              <View style={styles.detailsRow}>
-                <Ionicons name="document-text-outline" size={20} color={colors.grey} />
-                <Text style={styles.detailsText}>{selectedEvent.notes}</Text>
-              </View>
-            )}
-            
-            {selectedEvent.recurrence !== 'none' && (
-              <View style={styles.detailsRow}>
-                <Ionicons name="repeat" size={20} color={colors.grey} />
-                <Text style={styles.detailsText}>
-                  Repeats {selectedEvent.recurrence}
-                </Text>
-              </View>
-            )}
-            
-            {selectedEvent.status !== 'upcoming' && (
-              <View style={[
-                styles.detailsStatusContainer,
-                selectedEvent.status === 'taken' ? styles.takenStatusContainer : styles.missedStatusContainer
-              ]}>
-                <Ionicons 
-                  name={selectedEvent.status === 'taken' ? 'checkmark-circle' : 'close-circle'} 
-                  size={20} 
-                  color={selectedEvent.status === 'taken' ? '#4CAF50' : '#F44336'} 
-                />
-                <Text style={[
-                  styles.detailsStatusText,
-                  {color: selectedEvent.status === 'taken' ? '#4CAF50' : '#F44336'}
-                ]}>
-                  {selectedEvent.status === 'taken' ? 'Taken' : 'Missed'}
-                </Text>
-              </View>
-            )}
+
+          <View style={styles.detailsRow}>
+            <Ionicons name="time-outline" size={20} color={colors.grey} />
+            <Text style={styles.detailsText}>{selectedEvent.time}</Text>
           </View>
-          
-          <View style={styles.actionsContainer}>
-            {selectedEvent.type === 'medication' && selectedEvent.status === 'upcoming' && (
-              <View style={styles.statusActions}>
-                <TouchableOpacity 
-                  style={[styles.statusButton, styles.takenButton]}
-                  onPress={() => handleMarkStatus(selectedEvent, 'taken')}
-                >
-                  <Ionicons name="checkmark-circle" size={20} color="white" />
-                  <Text style={styles.statusButtonText}>Mark as Taken</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.statusButton, styles.missedButton]}
-                  onPress={() => handleMarkStatus(selectedEvent, 'missed')}
-                >
-                  <Ionicons name="close-circle" size={20} color="white" />
-                  <Text style={styles.statusButtonText}>Mark as Missed</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            
-            <TouchableOpacity 
-              style={styles.deleteButton}
-              onPress={() => handleDeleteEvent(selectedEvent)}
-            >
-              <Ionicons name="trash-outline" size={20} color="white" />
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => setCurrentView('calendar')}
-            >
-              <Text style={styles.backButtonText}>Back to Calendar</Text>
-            </TouchableOpacity>
+
+          <View style={styles.detailsRow}>
+            <Ionicons name="repeat" size={20} color={colors.grey} />
+            <Text style={styles.detailsText}>
+              Repeat: {selectedEvent.recurrence || 'None'}
+            </Text>
           </View>
-        </>
-      )}
-    </ScrollView>
-  );
-  
+        </View>
+
+        {/* Edit or Delete buttons */}
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={() => handleDeleteEvent(selectedEvent)}  // Pass the entire event object
+        >
+          <Text style={styles.deleteButtonText}>Delete</Text>
+        </TouchableOpacity>
+              </>
+    )}
+  </ScrollView>
+);
+
   return (
+    <ScrollView style={{ flex: 1 }}>
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Medication & Vet Calendar</Text>
+        <Text style={styles.headerTitle}>Pets Calendar</Text>
       </View>
-      
+
       {currentView === 'calendar' && renderCalendarView()}
       {currentView === 'addEvent' && renderAddEventForm()}
       {currentView === 'eventDetails' && renderEventDetails()}
     </View>
+  </ScrollView>
   );
 };
 
@@ -1006,21 +1067,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
     paddingVertical: 15,
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 30,
+    alignItems: 'center',
+  
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 24,
+    fontWeight: '600',
+    color: colors.black,
   },
   calendarContainer: {
     flex: 1,
   },
   calendarHeaderContainer: {
-    paddingVertical: 10,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.lightGrey,
   },
   calendarHeaderText: {
     fontSize: 18,
@@ -1096,6 +1156,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'flex-start',
     marginTop: 8,
+
   },
   categoryText: {
     fontSize: 12,
@@ -1146,29 +1207,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: colors.yellow,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   emptyStateButtonText: {
-    color: 'white',
+    color: 'black',
     fontWeight: 'bold',
   },
   formContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   formContentContainer: {
-    padding: 20,
-    paddingBottom: 50,
+    padding: 15,
   },
   formTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#000',
+    textAlign: 'center',
   },
   formLabel: {
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: 10,
     color: colors.darkGrey,
+    textAlign: 'center',
+
   },
   formGroup: {
     marginBottom: 20,
@@ -1195,27 +1260,39 @@ const styles = StyleSheet.create({
   typeButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8, // Adds spacing between buttons for better layout
   },
   typeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    borderRadius: 8,
+    borderRadius: 10,
     width: '48%',
     justifyContent: 'center',
     backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3, // Adds subtle shadow on Android for depth
   },
   activeButton: {
     backgroundColor: colors.yellow,
-    borderColor: colors.yellow,
+    borderColor: colors.black,
   },
   typeButtonText: {
     fontSize: 16,
     marginLeft: 8,
     color: colors.darkGrey,
   },
+  typeButtonTextActive: {
+    color: colors.black,
+    fontWeight: 'bold',
+  },
+  
   categoriesContainer: {
     flexDirection: 'row',
     marginBottom: 10,
@@ -1231,6 +1308,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     minWidth: 100,
     justifyContent: 'center',
+  },
+  categoryButtonActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.black,
   },
   categoryButtonText: {
     fontSize: 14,
@@ -1257,7 +1338,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   repeatButton: {
-    padding: 10,
+    padding: 7,
     borderWidth: 1,
     borderColor: colors.lightGrey,
     borderRadius: 8,
@@ -1265,35 +1346,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  repeatButtonActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.yellow,
+  },
   repeatButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.darkGrey,
+  },
+  repeatButtonTextActive: {
+    color: colors.black,
+    fontWeight: 'bold',
   },
   saveButton: {
     backgroundColor: colors.yellow,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 15,
     alignItems: 'center',
     marginTop: 20,
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: colors.black,
     fontSize: 16,
+    fontWeight: 'bold',
   },
   cancelButton: {
+    backgroundColor: colors.black,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 15,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: colors.yellow
   },
   cancelButtonText: {
-    color: colors.grey,
+    color: colors.white,
     fontSize: 16,
   },
   detailsContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.yellow,
+    height: '100%',
+    paddingBottom: 50,
   },
   detailsContentContainer: {
     padding: 20,
@@ -1307,22 +1403,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     color: '#000',
+    textAlign: 'center',  
   },
   detailsTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',  // Centers the content horizontally
     marginBottom: 5,
   },
   detailsType: {
     fontSize: 16,
     marginLeft: 5,
+    textAlign: 'center',  // Center the text inside the container
   },
+  
   detailsCategoryContainer: {
     marginTop: 5,
   },
   detailsCategory: {
     fontSize: 14,
     color: colors.darkGrey,
+    textAlign: 'center',  
   },
   detailsInfo: {
     marginBottom: 30,
@@ -1389,7 +1490,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   deleteButton: {
-    backgroundColor: '#FF5722',
+    backgroundColor: colors.black,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1398,18 +1499,22 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   deleteButtonText: {
-    color: 'white',
+    color: colors.white,
     marginLeft: 5,
     fontWeight: '500',
   },
   backButton: {
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: colors.black,
+    paddingVertical: 4,
+    paddingHorizontal: 20,
+    borderRadius: 40,
+    width: '30%',
   },
   backButtonText: {
-    color: colors.grey,
+    color: colors.white,
     fontSize: 16,
+    textAlign: 'center',
+    paddingBottom: 2,
   },
   modalOverlay: {
     flex: 1,
@@ -1475,6 +1580,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  activeText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  vetTypeButtonActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.yellow,
+  },
+  medicationCategoryActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.yellow,
+  },
+  vetCategoryActive: {
+    backgroundColor: colors.yellow,
+    borderColor: colors.yellow,
+  },
 });
-
 export default Calendar; 
