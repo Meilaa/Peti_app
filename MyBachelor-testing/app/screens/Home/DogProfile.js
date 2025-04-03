@@ -598,32 +598,10 @@ const DogProfile = () => {
     if (!currentAnimal) return;
     
     setIsUpdatingLostStatus(true);
-    
-    // First update the local state for immediate UI response
     const newLostStatus = !isLost;
-    setIsLost(newLostStatus);
-    
+  
     try {
-      // Store update in AsyncStorage for local changes
-      const storedChangesString = await AsyncStorage.getItem('lostStatusChanges') || '[]';
-      const storedChanges = JSON.parse(storedChangesString);
-      
-      const newChange = {
-        animalId: currentAnimal._id,
-        timestamp: Date.now(),
-        isLost: newLostStatus
-      };
-      
-      const updatedChanges = storedChanges
-        .filter(change => change.animalId !== currentAnimal._id)
-        .concat(newChange);
-      
-      await AsyncStorage.setItem('lostStatusChanges', JSON.stringify(updatedChanges));
-      
-      // Update the server
       const token = await AsyncStorage.getItem('authToken');
-      if (!token) throw new Error('No authentication token found');
-      
       const response = await fetch(`${environments.API_BASE_URL}/api/animals/${currentAnimal._id}/lost`, {
         method: 'PUT',
         headers: {
@@ -631,48 +609,87 @@ const DogProfile = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          isLost: newLostStatus
-        }),
+          isLost: newLostStatus,
+          forceUpdate: false // First try without forcing
+        })
       });
-      
+  
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Server response error:', errorData);
+        const errorData = await response.json();
         
-        // If the server rejects the update, revert the local state
-        setIsLost(!newLostStatus);
-        throw new Error(`Server responded with status: ${response.status}`);
+        // Handle case where temperament needs to change
+        if (errorData.requiresTemperamentChange) {
+          const shouldUpdate = await new Promise((resolve) => {
+            Alert.alert(
+              "Temperament Change Required",
+              "For safety reasons, only aggressive dogs can be marked as lost. Change temperament to aggressive?",
+              [
+                { text: "Cancel", onPress: () => resolve(false) },
+                { text: "Change", onPress: () => resolve(true) }
+              ]
+            );
+          });
+  
+          if (shouldUpdate) {
+            // Retry with forceUpdate
+            const forceResponse = await fetch(`${environments.API_BASE_URL}/api/animals/${currentAnimal._id}/lost`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                isLost: newLostStatus,
+                forceUpdate: true
+              })
+            });
+  
+            if (!forceResponse.ok) {
+              throw new Error('Failed to update after temperament change');
+            }
+  
+            const updatedAnimal = await forceResponse.json();
+            updateLocalState(updatedAnimal.animal);
+            showSuccessAlert(newLostStatus);
+            return;
+          } else {
+            setIsUpdatingLostStatus(false);
+            return;
+          }
+        }
+        
+        throw new Error(errorData.message || 'Failed to update lost status');
       }
-      
+  
       const data = await response.json();
-      console.log('Lost status update successful:', data);
-      
-      // Update local animals list
-      const updatedAnimals = animals.map(animal => 
-        animal._id === currentAnimal._id 
-          ? { ...animal, isLost: newLostStatus }
-          : animal
-      );
-      setAnimals(updatedAnimals);
-      
-      // If marking as lost and temperament is aggressive, show warning
-      if (newLostStatus && currentAnimal.temperament === 'aggressive') {
-        Alert.alert(
-          "Warning - Aggressive Dog",
-          "Your aggressive dog has been marked as lost. This will alert other users in the area for safety purposes.",
-          [{ text: "OK" }]
-        );
-      }
+      updateLocalState(data.animal);
+      showSuccessAlert(newLostStatus);
+  
     } catch (error) {
-      console.error('Error updating lost status:', error);
-      // Revert UI state if there was an error
-      setIsLost(!newLostStatus);
-      Alert.alert("Error", "There was a problem updating the lost status. Please try again.");
+      Alert.alert("Error", error.message);
     } finally {
       setIsUpdatingLostStatus(false);
     }
   };
-
+  
+  // Helper functions
+  const updateLocalState = (animal) => {
+    const updatedAnimals = animals.map(a => 
+      a._id === animal._id ? animal : a
+    );
+    setAnimals(updatedAnimals);
+    setIsLost(animal.isLost);
+  };
+  
+  const showSuccessAlert = (isLost) => {
+    if (isLost) {
+      Alert.alert(
+        "Dog Marked as Lost",
+        "Your dog has been reported as lost. Nearby users will be notified.",
+        [{ text: "OK" }]
+      );
+    }
+  };
   if (loading) {
     return (
       <View style={styles.loadingContainer}>

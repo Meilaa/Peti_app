@@ -172,82 +172,54 @@ router.put("/:id/temperament", authenticateJWT, async (req, res) => {
 // Add a new endpoint to mark an animal as lost or found
 router.put('/:id/lost', authenticateJWT, async (req, res) => {
   try {
-    console.log(`🔍 PUT /animals/${req.params.id}/lost request received`);
-    console.log(`Request body:`, req.body);
+    const { id } = req.params;
+    const { isLost, forceUpdate } = req.body;
     
-    const { isLost } = req.body;
-    
-    // Validate the isLost value
+    // Validate inputs
     if (typeof isLost !== 'boolean') {
-      return res.status(400).json({
-        message: 'Invalid request: isLost must be a boolean value'
-      });
+      return res.status(400).json({ message: 'isLost must be a boolean' });
     }
-    
-    // Validate the animal ID
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({
-        message: 'Invalid animal ID format'
-      });
-    }
-    
-    // Find and update the animal
-    const animal = await Animal.findById(req.params.id)
-      .populate('owner')
-      .populate('device');
-    
+
+    const animal = await Animal.findOne({ _id: id, owner: req.user.id });
     if (!animal) {
-      return res.status(404).json({
-        message: 'Animal not found'
-      });
+      return res.status(404).json({ message: 'Animal not found' });
     }
-    
-    // Check ownership
-    if (animal.owner._id.toString() !== req.user.id && !req.user.isAdmin) {
-      return res.status(403).json({
-        message: 'You are not authorized to update this animal'
-      });
-    }
-    
-    // Check if the animal is aggressive
+
+    // If marking as lost and not aggressive
     if (isLost && animal.temperament !== 'aggressive') {
+      // If client explicitly wants to force the update (with temperament change)
+      if (forceUpdate) {
+        animal.temperament = 'aggressive';
+        animal.isLost = true;
+        animal.lostSince = new Date();
+        await animal.save();
+        
+        return res.status(200).json({
+          message: 'Animal marked as lost and temperament updated to aggressive',
+          animal
+        });
+      }
+      
       return res.status(400).json({
-        message: 'Only aggressive dogs can be marked as lost for public safety tracking',
-        details: 'Update the dog\'s temperament to aggressive before marking it as lost'
+        message: 'Only aggressive dogs can be marked as lost',
+        details: 'Set forceUpdate: true to automatically change temperament to aggressive',
+        requiresTemperamentChange: true
       });
     }
-    
-    // Update the animal
+
+    // Regular update
     animal.isLost = isLost;
-    animal.lastUpdated = new Date();
-    
-    // If marking as lost, record the time
-    if (isLost) {
-      animal.lostSince = new Date();
-      console.log(`📋 Animal ${animal.name} marked as lost at ${animal.lostSince}`);
-    } else {
-      animal.lostSince = null;
-      console.log(`✅ Animal ${animal.name} marked as found`);
-    }
-    
+    animal.lostSince = isLost ? new Date() : null;
     await animal.save();
-    
-    // Send notification to other users if animal is marked as lost
-    if (isLost) {
-      // Here you would implement notification logic
-      console.log(`🔔 Notification sent: Aggressive dog ${animal.name} is lost!`);
-    }
-    
-    // Return the updated animal
+
     res.status(200).json({
-      message: isLost ? 'Animal marked as lost' : 'Animal marked as found',
+      message: `Animal marked as ${isLost ? 'lost' : 'found'}`,
       animal
     });
-    
+
   } catch (error) {
-    console.error('Error updating animal lost status:', error);
-    res.status(500).json({
-      message: 'Error updating animal lost status',
+    res.status(500).json({ 
+      message: 'Error updating lost status',
       error: error.message
     });
   }

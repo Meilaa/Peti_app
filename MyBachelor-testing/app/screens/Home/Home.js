@@ -166,6 +166,10 @@ const DogWalkingApp = () => {
         throw new Error('No token found');
       }
 
+      // Get stored last known locations
+      const storedLocations = await AsyncStorage.getItem('lastKnownLocations');
+      const lastKnownLocations = storedLocations ? JSON.parse(storedLocations) : {};
+
       // First try to get animal data to get temperament information
       const animalsResponse = await fetch(`${environments.API_BASE_URL}/api/animals`, {
         headers: {
@@ -216,7 +220,7 @@ const DogWalkingApp = () => {
           object_id: 'none',
           isOffline: true,
           temperament: 'neutral',
-          animalId: '0' // Add animalId property
+          animalId: '0'
         }]);
         setLoading(false);
         return;
@@ -238,20 +242,33 @@ const DogWalkingApp = () => {
         const temperament = linkedAnimalId && animalTemperaments[linkedAnimalId] 
           ? animalTemperaments[linkedAnimalId] 
           : device.temperament || 'neutral';
+
+        // If device is online, update last known location
+        if (!isOffline) {
+          lastKnownLocations[device._id] = {
+            latitude: device.positionLatitude,
+            longitude: device.positionLongitude,
+            timestamp: new Date().toISOString()
+          };
+        }
         
         return {
           id: device._id,
-          latitude: device.positionLatitude,
-          longitude: device.positionLongitude,
+          latitude: isOffline ? (lastKnownLocations[device._id]?.latitude || device.positionLatitude) : device.positionLatitude,
+          longitude: isOffline ? (lastKnownLocations[device._id]?.longitude || device.positionLongitude) : device.positionLongitude,
           animalName: animalName,
           battery: device.batteryLevel || 'N/A',
           status: isOffline ? 'Offline' : 'Online',
           object_id: device.object_id || 'none',
           isOffline: isOffline,
           temperament: temperament,
-          animalId: linkedAnimalId // Store the actual animal ID for direct matching
+          animalId: linkedAnimalId,
+          lastKnownLocation: isOffline ? lastKnownLocations[device._id] : null
         };
       });
+
+      // Save updated last known locations
+      await AsyncStorage.setItem('lastKnownLocations', JSON.stringify(lastKnownLocations));
 
       // Filter out duplicate locations
       const uniqueLocations = [];
@@ -286,7 +303,7 @@ const DogWalkingApp = () => {
             object_id: 'none',
             isOffline: true,
             temperament: 'neutral',
-            animalId: '0' // Add animalId property
+            animalId: '0'
           }]);
         }
       }
@@ -305,7 +322,7 @@ const DogWalkingApp = () => {
         object_id: 'none',
         isOffline: true,
         temperament: 'neutral',
-        animalId: '0' // Add animalId property
+        animalId: '0'
       }]);
     }
   };
@@ -693,13 +710,33 @@ const DogWalkingApp = () => {
 
   const goToPreviousAnimal = () => {
     if (currentLocationIndex > 0) {
-      setCurrentLocationIndex(currentLocationIndex - 1);
+      setCurrentLocationIndex(prev => prev - 1);
+      // Animate map to the new location
+      const prevAnimal = locations[currentLocationIndex - 1];
+      if (mapRef && prevAnimal) {
+        mapRef.animateToRegion({
+          latitude: prevAnimal.latitude,
+          longitude: prevAnimal.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01
+        }, 1000);
+      }
     }
   };
 
   const goToNextAnimal = () => {
     if (currentLocationIndex < locations.length - 1) {
-      setCurrentLocationIndex(currentLocationIndex + 1);
+      setCurrentLocationIndex(prev => prev + 1);
+      // Animate map to the new location
+      const nextAnimal = locations[currentLocationIndex + 1];
+      if (mapRef && nextAnimal) {
+        mapRef.animateToRegion({
+          latitude: nextAnimal.latitude,
+          longitude: nextAnimal.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01
+        }, 1000);
+      }
     }
   };
 
@@ -997,7 +1034,7 @@ const DogWalkingApp = () => {
         style={styles.closeButton}
         onPress={() => setModalVisible(false)}
       >
-        <Ionicons name="close" size={24} color="#fff" />
+        <Ionicons name="close" size={24} color={colors.yellow} />
       </TouchableOpacity>
     </View>
   );
@@ -1329,33 +1366,6 @@ const DogWalkingApp = () => {
     } else if (safeZoneLabel) {
       statusLabels = [safeZoneLabel];
     }
-    
-    return (
-      <View style={styles.statusBox}>
-        <View style={styles.statusBoxContent}>
-          <View style={styles.temperamentIconContainer}>
-            <MaterialCommunityIcons 
-              name={temperamentInfo.icon} 
-              size={24} 
-              color={temperamentInfo.color} 
-            />
-          </View>
-          <View style={styles.statusTextContainer}>
-            <Text style={styles.animalNameText}>
-              {currentLocation.animalName}
-            </Text>
-            <View style={styles.statusLabelsContainer}>
-              <Text style={[styles.statusLabel, { color: temperamentInfo.color }]}>
-                {temperamentInfo.label}
-              </Text>
-              
-              {/* Show danger zone status with priority */}
-              {statusLabels}
-            </View>
-          </View>
-        </View>
-      </View>
-    );
   };
 
   // Create a function to show the detailed info for a specific dog
@@ -1593,38 +1603,74 @@ const DogWalkingApp = () => {
     console.log("Map is ready");
   }, []);
 
+  // Add handleRegionChange function
+  const handleRegionChange = useCallback((region) => {
+    // You can add any region change handling logic here if needed
+    console.log("Region changed:", region);
+  }, []);
+
   // Optimize map markers with useMemo
   const animalMarkers = useMemo(() => {
-    return locations.map((location, index) => (
-      <Marker
-        key={`location-${location.id}`}
-        coordinate={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-        }}
-        title={location.animalName}
-        description={location.status === 'Online' ? 'Online' : 'Offline'}
-        onPress={() => navigateToDevicePage(location)}
-      >
-        <View style={styles.markerContainer}>
-          <View
-            style={[
+    if (viewAll) {
+      return locations.map((location) => (
+        <Marker
+          key={`location-${location.id}`}
+          coordinate={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }}
+          title={location.animalName}
+          description={`Status: ${location.status}${location.isOffline ? ' (Last known location)' : ''}`}
+        >
+          <View style={styles.markerContainer}>
+            <View style={[
               styles.marker,
-              location.status === 'Online'
-                ? styles.onlineMarker
-                : styles.offlineMarker,
-              unsafeAnimals.includes(location.id) && styles.unsafeMarker,
-            ]}
-          >
-            <Image source={DogImage} style={styles.dogMarkerImage} />
+              location.isOffline && styles.offlineMarker,
+              location.temperament === 'aggressive' && styles.aggressiveMarker
+            ]}>
+              <Text style={styles.markerText}>🐕</Text>
+            </View>
+            {location.isOffline && (
+              <View style={styles.offlineIndicator}>
+                <MaterialIcons name="wifi-off" size={12} color="white" />
+              </View>
+            )}
           </View>
-          {location.temperament === 'aggressive' && (
-            <View style={styles.aggressiveIndicator} />
-          )}
-        </View>
-      </Marker>
-    ));
-  }, [locations, unsafeAnimals, navigateToDevicePage]);
+        </Marker>
+      ));
+    } else {
+      // Only show the current animal
+      const currentAnimal = locations[currentLocationIndex];
+      if (!currentAnimal) return null;
+
+      return (
+        <Marker
+          key={`location-${currentAnimal.id}`}
+          coordinate={{
+            latitude: currentAnimal.latitude,
+            longitude: currentAnimal.longitude,
+          }}
+          title={currentAnimal.animalName}
+          description={`Status: ${currentAnimal.status}${currentAnimal.isOffline ? ' (Last known location)' : ''}`}
+        >
+          <View style={styles.markerContainer}>
+            <View style={[
+              styles.marker,
+              currentAnimal.isOffline && styles.offlineMarker,
+              currentAnimal.temperament === 'aggressive' && styles.aggressiveMarker
+            ]}>
+              <Text style={styles.markerText}>🐕</Text>
+            </View>
+            {currentAnimal.isOffline && (
+              <View style={styles.offlineIndicator}>
+                <MaterialIcons name="wifi-off" size={12} color="white" />
+              </View>
+            )}
+          </View>
+        </Marker>
+      );
+    }
+  }, [locations, currentLocationIndex, viewAll]);
 
   // Optimize lost dog markers with useMemo
   const lostDogMarkers = useMemo(() => {
@@ -1753,75 +1799,45 @@ const DogWalkingApp = () => {
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Image source={DogImage} style={styles.dogIcon} />
-          <Text style={styles.title}>{viewAll ? 'All Animals' : currentLocation?.animalName}</Text>
+          <Text style={styles.title}>{viewAll ? 'All Animals' : locations[currentLocationIndex]?.animalName || 'No Animals'}</Text>
         </View>
         <View style={styles.statusIcons}>
           <View style={styles.statusIconsRow}>
             <FontAwesome6 
               name="wifi" 
               size={20} 
-              color={(currentLocation?.status === 'Online') ? colors.yellow : colors.gray} 
+              color={(viewAll ? false : locations[currentLocationIndex]?.status === 'Online') ? colors.yellow : colors.gray} 
             />
-            <Text style={styles.statusText}>{viewAll ? '' : (currentLocation?.status || 'Offline')}</Text>
+            <Text style={styles.statusText}>{viewAll ? '' : (locations[currentLocationIndex]?.status || 'Offline')}</Text>
           </View>
           <View style={styles.statusIconsRow}>
             <FontAwesome6 
               name="battery-full" 
               size={20} 
-              color={(currentLocation?.battery !== undefined && currentLocation?.battery !== 'N/A') ? colors.yellow : colors.gray} 
+              color={(viewAll ? false : locations[currentLocationIndex]?.battery !== undefined && locations[currentLocationIndex]?.battery !== 'N/A') ? colors.yellow : colors.gray} 
             />
-            <Text style={styles.statusText}>{viewAll ? '' : (currentLocation?.battery || 'N/A')}%</Text>
+            <Text style={styles.statusText}>{viewAll ? '' : (locations[currentLocationIndex]?.battery || 'N/A')}%</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.mapContainer}>
         <MapView
-          ref={(ref) => setMapRef(ref)}
+          ref={mapRef}
           style={styles.map}
           mapType={mapType}
           initialRegion={mapRegion}
-          region={mapRegion}
-          showsUserLocation={true}
+          onRegionChangeComplete={handleRegionChange}
+          showsUserLocation={false}
           onMapReady={onMapReady}
-          maxZoomLevel={19}
-          minZoomLevel={10}
-          moveOnMarkerPress={false}
         >
-          {/* Display territories/safe zones as polygons */}
-          {territories.map((territory) => (
-            <Polygon
-              key={territory._id}
-              coordinates={territory.coordinates}
-              fillColor="rgba(0, 128, 0, 0.2)"
-              strokeColor="rgba(0, 128, 0, 0.8)"
-              strokeWidth={2}
-            />
-          ))}
-
-          {/* Display danger zones as polygons */}
-          {dangerZones.map((zone) => (
-            <Polygon
-              key={zone._id}
-              coordinates={zone.coordinates}
-              fillColor={getDangerZoneColor(zone.dangerType)}
-              strokeColor="red"
-              strokeWidth={2}
-            />
-          ))}
-
-          {/* Display locations as markers */}
           {animalMarkers}
-
-          {/* Display lost dogs on map when tracking is enabled */}
           {lostDogMarkers}
         </MapView>
 
-        {renderStatusBox()}
-
         {/* Bottom Map Controls */}
         <View style={styles.bottomMapControls}>
-          {/* Lost Dog Tracking Button - updated text to be inclusive of all lost dogs, not just aggressive ones */}
+          {/* Lost Dog Tracking Button */}
           <TouchableOpacity
             style={[
               styles.bottomMapButton,
@@ -1845,6 +1861,21 @@ const DogWalkingApp = () => {
             <FontAwesome name="map" size={24} color="white" />
           </TouchableOpacity>
         </View>
+        
+        {/* Button to show lost dogs list */}
+        {trackingEnabled && (
+          <TouchableOpacity
+            style={styles.viewLostDogsButton}
+            onPress={() => setShowLostAggressiveInfo(true)}
+          >
+            <MaterialCommunityIcons name="dog-side" size={20} color="white" />
+            <Text style={styles.viewLostDogsText}>
+              {lostAggressiveDogs.length > 0 
+                ? `View ${lostAggressiveDogs.length} Lost Dog${lostAggressiveDogs.length !== 1 ? 's' : ''}`
+                : 'No Lost Dogs Found'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.navigationButtons}>
@@ -1873,6 +1904,7 @@ const DogWalkingApp = () => {
         )}
       </View>
 
+      {/* Map Settings Modal */}
       <Modal animationType="fade" transparent={true} visible={mapSettingsVisible} onRequestClose={() => setMapSettingsVisible(false)}>
         <View style={styles.modalBackground}>
           <View style={styles.modalContent}>
@@ -1903,42 +1935,7 @@ const DogWalkingApp = () => {
         </View>
       </Modal>
 
-      {/* Real-time Alert Toggle Button */}
-      {trackingEnabled && (
-        <TouchableOpacity
-          style={[
-            styles.notificationToggleButton,
-            notificationsEnabled ? styles.notificationsEnabled : styles.notificationsDisabled
-          ]}
-          onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-        >
-          <MaterialIcons 
-            name={notificationsEnabled ? "notifications-active" : "notifications-off"} 
-            size={24} 
-            color="white" 
-          />
-          <Text style={styles.notificationToggleText}>
-            {notificationsEnabled ? 'Alerts On' : 'Alerts Off'}
-          </Text>
-        </TouchableOpacity>
-      )}
-      
-      {/* Button to show lost dogs list - repositioned higher */}
-      {trackingEnabled && (
-        <TouchableOpacity
-          style={styles.viewLostDogsButton}
-          onPress={() => setShowLostAggressiveInfo(true)}
-        >
-          <MaterialCommunityIcons name="dog-side" size={20} color="white" />
-          <Text style={styles.viewLostDogsText}>
-            {lostAggressiveDogs.length > 0 
-              ? `View ${lostAggressiveDogs.length} Lost Dog${lostAggressiveDogs.length !== 1 ? 's' : ''}`
-              : 'No Lost Dogs Found'}
-          </Text>
-        </TouchableOpacity>
-      )}
-      
-      {/* Lost Dogs Modal - updated to use showLostAggressiveInfo consistently */}
+      {/* Lost Dogs Modal */}
       <Modal
         visible={showLostAggressiveInfo}
         transparent={true}
@@ -2011,356 +2008,7 @@ const DogWalkingApp = () => {
         </View>
       </Modal>
 
-      {/* Detailed Lost Dog Information Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showDetailedInfo && selectedLostDog !== null}
-        onRequestClose={() => {
-          setShowDetailedInfo(false);
-          // Don't show the list modal again automatically
-        }}
-      >
-        <View style={styles.modalBackground}>
-          <View style={styles.detailedInfoContainer}>
-            <View style={styles.detailedInfoHeader}>
-              <View style={styles.headerContent}>
-                <Text style={styles.detailedInfoTitle}>Lost Dog Details</Text>
-                <View style={styles.statusBadgeContainer}>
-                  {selectedLostDog?.temperament === 'aggressive' && (
-                    <View style={styles.dangerBadge}>
-                      <MaterialIcons name="warning" size={18} color="white" />
-                      <Text style={styles.dangerBadgeText}>AGGRESSIVE</Text>
-                    </View>
-                  )}
-                  <View style={styles.lostBadge}>
-                    <MaterialIcons name="error-outline" size={18} color="white" />
-                    <Text style={styles.lostBadgeText}>MISSING</Text>
-                  </View>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowDetailedInfo(false)}
-              >
-                <MaterialIcons name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedLostDog && (
-              <ScrollView style={styles.detailedInfoContent}>
-                {/* Dog Image Section */}
-                <View style={styles.dogIconContainer}>
-                  <Text style={styles.largeDogEmoji}>🐕</Text>
-                  {selectedLostDog.isLost && (
-                    <View style={styles.lostTimeContainer}>
-                      <Text style={styles.lostTimeLabel}>Lost since:</Text>
-                      <Text style={styles.lostTimeValue}>
-                        {selectedLostDog.lostSince 
-                          ? moment(selectedLostDog.lostSince).format('MMM D, YYYY [at] h:mm A') 
-                          : 'Unknown'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                
-                {/* Basic Information Section */}
-                <View style={styles.infoSection}>
-                  <Text style={styles.infoSectionTitle}>Dog Information</Text>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Name:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.name || selectedLostDog.animalName || 'Unknown'}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Breed:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.breed || 'Unknown breed'}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Gender:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.gender || 'Unknown'}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Age:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.age || 'Unknown'}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Weight:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.weight ? `${selectedLostDog.weight} kg` : 'Unknown'}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Height:</Text>
-                    <Text style={styles.infoValue}>{selectedLostDog.height ? `${selectedLostDog.height} cm` : 'Unknown'}</Text>
-                  </View>
-                  {selectedLostDog.owner && (
-                    <View style={styles.ownerSection}>
-                      <Text style={styles.ownerLabel}>Reported by:</Text>
-                      <Text style={styles.ownerValue}>{selectedLostDog.owner.name || selectedLostDog.owner.email || 'Anonymous'}</Text>
-                    </View>
-                  )}
-                </View>
-                
-                {/* Live Status Section */}
-                <View style={styles.infoSection}>
-                  <Text style={styles.infoSectionTitle}>Live Status</Text>
-                  <View style={styles.statusIndicators}>
-                    <View style={[
-                      styles.statusIndicator, 
-                      selectedLostDog.device?.status === 'Online' ? styles.statusOnline : styles.statusOffline
-                    ]}>
-                      <MaterialIcons 
-                        name={selectedLostDog.device?.status === 'Online' ? "wifi" : "wifi-off"} 
-                        size={20} 
-                        color="white" 
-                      />
-                      <Text style={styles.statusIndicatorText}>
-                        {selectedLostDog.device?.status || 'Unknown'}
-                      </Text>
-                    </View>
-                    
-                    <View style={[
-                      styles.statusIndicator, 
-                      selectedLostDog.lastUpdated ? styles.statusRecent : styles.statusOld
-                    ]}>
-                      <MaterialIcons 
-                        name="update" 
-                        size={20} 
-                        color="white" 
-                      />
-                      <Text style={styles.statusIndicatorText}>
-                        {selectedLostDog.lastUpdated 
-                          ? `Updated ${moment(selectedLostDog.lastUpdated).fromNow()}` 
-                          : 'No updates'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                
-                {/* Device Information Section */}
-                {selectedLostDog.device && (
-                  <View style={styles.infoSection}>
-                    <Text style={styles.infoSectionTitle}>Device Information</Text>
-                    <View style={styles.deviceInfoBox}>
-                      <View style={styles.deviceInfoItem}>
-                        <MaterialIcons name="battery-std" size={24} color="#4CAF50" />
-                        <View style={styles.deviceInfoContent}>
-                          <Text style={styles.deviceInfoLabel}>Battery</Text>
-                          <Text style={styles.deviceInfoValue}>
-                            {selectedLostDog.device.battery || 'N/A'}%
-                          </Text>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.deviceInfoItem}>
-                        <MaterialIcons name="perm-device-info" size={24} color="#2196F3" />
-                        <View style={styles.deviceInfoContent}>
-                          <Text style={styles.deviceInfoLabel}>Device ID</Text>
-                          <Text style={styles.deviceInfoValue}>
-                            {selectedLostDog.device.deviceId || 'Unknown'}
-                          </Text>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.deviceInfoItem}>
-                        <MaterialIcons name="schedule" size={24} color="#FF9800" />
-                        <View style={styles.deviceInfoContent}>
-                          <Text style={styles.deviceInfoLabel}>Last Connection</Text>
-                          <Text style={styles.deviceInfoValue}>
-                            {selectedLostDog.device.lastConnected 
-                              ? moment(selectedLostDog.device.lastConnected).fromNow() 
-                              : 'Unknown'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                )}
-                
-                {/* Location Section */}
-                <View style={styles.infoSection}>
-                  <Text style={styles.infoSectionTitle}>Location Details</Text>
-                  <View style={styles.locationBox}>
-                    <View style={styles.locationHeader}>
-                      <MaterialIcons name="location-on" size={24} color="#FF5722" />
-                      <Text style={styles.locationTitle}>Last Known Location</Text>
-                    </View>
-                    
-                    <Text style={styles.locationAddress}>
-                      {selectedLostDog.lastLocation?.address || 'Location data unavailable'}
-                    </Text>
-                    
-                    <View style={styles.coordinatesContainer}>
-                      <Text style={styles.coordinatesLabel}>GPS Coordinates:</Text>
-                      <Text style={styles.coordinatesValue}>
-                        {(selectedLostDog.latitude || selectedLostDog.positionLatitude || selectedLostDog.lastLocation?.latitude)?.toFixed(6) || '?'}, 
-                        {(selectedLostDog.longitude || selectedLostDog.positionLongitude || selectedLostDog.lastLocation?.longitude)?.toFixed(6) || '?'}
-                      </Text>
-                    </View>
-                    
-                    <Text style={styles.locationTimestamp}>
-                      Last updated: {selectedLostDog.lastLocation?.timestamp 
-                        ? moment(selectedLostDog.lastLocation.timestamp).format('MMM D, YYYY [at] h:mm A')
-                        : 'Unknown'}
-                    </Text>
-                  </View>
-                </View>
-                
-                {/* Safety Section - Only show for aggressive dogs */}
-                {selectedLostDog.temperament === 'aggressive' && (
-                  <View style={styles.infoSection}>
-                    <Text style={styles.infoSectionTitle}>Safety Information</Text>
-                    <View style={styles.warningBox}>
-                      <MaterialIcons name="error-outline" size={24} color="#ff3131" />
-                      <Text style={styles.warningText}>
-                        This dog is marked as aggressive. Please use caution if encountered.
-                        Do not approach this dog directly.
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.safetyTipsContainer}>
-                      <Text style={styles.safetyTipsHeader}>If you see this dog:</Text>
-                      <View style={styles.safetyTip}>
-                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
-                        <Text style={styles.safetyTipText}>Keep a safe distance</Text>
-                      </View>
-                      <View style={styles.safetyTip}>
-                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
-                        <Text style={styles.safetyTipText}>Call the owner if contact info is available</Text>
-                      </View>
-                      <View style={styles.safetyTip}>
-                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
-                        <Text style={styles.safetyTipText}>Alert local animal control</Text>
-                      </View>
-                      <View style={styles.safetyTip}>
-                        <MaterialIcons name="cancel" size={16} color="#ff3131" />
-                        <Text style={styles.safetyTipText}>Do not attempt to capture the dog yourself</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-                
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => {
-                      if (mapRef) {
-                        const lat = selectedLostDog.latitude || selectedLostDog.positionLatitude || selectedLostDog.lastLocation?.latitude || 0;
-                        const lng = selectedLostDog.longitude || selectedLostDog.positionLongitude || selectedLostDog.lastLocation?.longitude || 0;
-                        
-                        mapRef.animateToRegion({
-                          latitude: lat,
-                          longitude: lng,
-                          latitudeDelta: 0.01,
-                          longitudeDelta: 0.01
-                        }, 1000);
-                        setShowDetailedInfo(false);
-                      }
-                    }}
-                  >
-                    <MaterialIcons name="location-on" size={20} color="white" />
-                    <Text style={styles.actionButtonText}>Show on Map</Text>
-                  </TouchableOpacity>
-                  
-                  {/* Only show mark as found if user has permission */}
-                  {selectedLostDog.owner && selectedLostDog.owner._id === currentUserId && (
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.foundButton]}
-                      onPress={() => {
-                        Alert.alert(
-                          "Mark Dog as Found?",
-                          `Are you sure you want to mark ${selectedLostDog.name || 'this dog'} as found? This will remove the dog from the lost dogs list.`,
-                          [
-                            { text: "Cancel", style: "cancel" },
-                            { 
-                              text: "Mark as Found", 
-                              onPress: () => markDogAsFound(selectedLostDog._id)
-                            }
-                          ]
-                        );
-                      }}
-                    >
-                      <MaterialIcons name="check-circle" size={20} color="white" />
-                      <Text style={styles.actionButtonText}>Mark as Found</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Lost Aggressive Dogs Summary Popup */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showLostAggressiveInfo}
-        onRequestClose={() => setShowLostAggressiveInfo(false)}
-      >
-        <View style={styles.modalBackground}>
-          <View style={styles.lostAggressiveSummaryContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Lost Dogs</Text>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowLostAggressiveInfo(false)}
-              >
-                <MaterialIcons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            
-            {lostAggressiveDogs.length > 0 ? (
-              <ScrollView style={styles.lostAggressiveList}>
-                {lostAggressiveDogs.map((dog, index) => (
-                  <TouchableOpacity 
-                    key={`summary-${dog._id || index}`}
-                    style={styles.lostDogSummaryItem}
-                    onPress={() => {
-                      setSelectedLostDog(dog);
-                      setShowDetailedInfo(true);
-                      setShowLostAggressiveInfo(false);
-                    }}
-                  >
-                    <View style={styles.lostDogItemHeader}>
-                      <Text style={styles.lostDogName}>{dog.name || dog.animalName || 'Unknown Dog'}</Text>
-                      {dog.temperament === 'aggressive' && (
-                        <View style={styles.lostDogBadge}>
-                          <Text style={styles.lostDogBadgeText}>AGGRESSIVE</Text>
-                        </View>
-                      )}
-                    </View>
-                    
-                    <Text style={styles.lostDogBreed}>{dog.breed || 'Unknown breed'}</Text>
-                    <Text style={styles.lostDogLastSeen}>
-                      Last seen: {dog.lastSeen ? moment(dog.lastSeen).fromNow() : 
-                        (dog.lostSince ? moment(dog.lostSince).fromNow() : 
-                          (dog.lastLocation?.timestamp ? moment(dog.lastLocation.timestamp).fromNow() : 'Unknown'))}
-                    </Text>
-                    
-                    <View style={styles.lostDogItemFooter}>
-                      <MaterialIcons name="info-outline" size={16} color="#4CAF50" />
-                      <Text style={styles.viewDetailsText}>View detailed information</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.noLostDogs}>
-                <MaterialCommunityIcons name="dog-side" size={50} color="#666" />
-                <Text style={styles.noLostDogsText}>No lost dogs found</Text>
-                <Text style={styles.noLostDogsSubtext}>
-                  Check again later or expand your search area
-                </Text>
-                <TouchableOpacity 
-                  style={styles.closeModalButton}
-                  onPress={() => setShowLostAggressiveInfo(false)}
-                >
-                  <Text style={styles.closeModalButtonText}>Close</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {renderStatusBox()}
     </View>
   );
 };
@@ -2523,7 +2171,6 @@ const styles = StyleSheet.create({
   },
   walkButtonText: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 1 },
 
-  // Modal Styles
   modalBackground: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -2561,7 +2208,9 @@ const styles = StyleSheet.create({
   closeButton: {
     position: 'absolute',
     right: 0,
+    padding: 10,  // Increases tap area
   },
+  
   modalBody: {
     marginTop: 10,
   },
@@ -2606,10 +2255,49 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: 35,
+    height: 35,
   },
-  markerIcon: {
-    width: 36,
-    height: 36,
+  marker: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  onlineMarker: {
+    borderColor: colors.primary,
+  },
+  offlineMarker: {
+    borderColor: colors.grey,
+    opacity: 0.8,
+  },
+  aggressiveMarker: {
+    backgroundColor: colors.danger,
+  },
+  markerText: {
+    fontSize: 16,
+  },
+  offlineIndicator: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.grey,
+    borderRadius: 6,
+    padding: 1,
+    borderWidth: 1,
+    borderColor: 'white',
   },
   pulseAnimation: {
     transform: [{ scale: 1.1 }],
@@ -2626,7 +2314,7 @@ const styles = StyleSheet.create({
   recentlyChangedText: {
     color: '#000',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   safetyIndicator: {
     flexDirection: 'row',
@@ -2693,7 +2381,7 @@ const styles = StyleSheet.create({
   },
   animalNameText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
   outOfZoneMarker: {
@@ -2717,13 +2405,13 @@ const styles = StyleSheet.create({
   outOfZoneText: {
     color: '#FFF',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 4,
     textAlign: 'center',
   },
   statusBox: {
     position: 'absolute',
-    top: 10,
+    top: 80,
     left: 10,
     right: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -2734,6 +2422,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    width: '75%',
   },
   statusBoxContent: {
     flexDirection: 'row',
@@ -2758,7 +2447,7 @@ const styles = StyleSheet.create({
   },
   animalNameText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.black,
     marginBottom: 2,
   },
@@ -2786,12 +2475,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   trackingActiveButton: {
-    backgroundColor: '#ff3131',
+    backgroundColor: colors.black,
     borderWidth: 2,
     borderColor: '#fff',
   },
   trackingInactiveButton: {
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.yellow,
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   trackingButtonContent: {
     flexDirection: 'row',
@@ -2808,21 +2499,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
     position: 'relative',
   },
-  pulsingDot: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#ff0',
-  },
   trackingButtonTextContainer: {
     flex: 1,
   },
   trackingButtonTitle: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
   trackingButtonSubtitle: {
@@ -2869,7 +2551,7 @@ const styles = StyleSheet.create({
   },
   lostAggressiveLabelText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 10,
   },
   viewLostAggressiveButton: {
@@ -2890,7 +2572,7 @@ const styles = StyleSheet.create({
   },
   viewLostAggressiveText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 10,
     fontSize: 16,
   },
@@ -2921,7 +2603,7 @@ const styles = StyleSheet.create({
   },
   lostAggressiveName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   aggressiveBadge: {
     backgroundColor: '#ff5252',
@@ -2933,7 +2615,7 @@ const styles = StyleSheet.create({
   },
   aggressiveBadgeText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
     marginLeft: 3,
   },
@@ -2958,7 +2640,7 @@ const styles = StyleSheet.create({
   },
   noLostDogsText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginTop: 15,
     textAlign: 'center',
   },
@@ -2970,7 +2652,7 @@ const styles = StyleSheet.create({
   },
   notificationToggleButton: {
     position: 'absolute',
-    top: 180,
+    bottom: 80,
     right: 20,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2979,14 +2661,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   notificationsEnabled: {
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.yellow,
   },
   notificationsDisabled: {
     backgroundColor: '#757575',
   },
   notificationToggleText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 6,
   },
   dogEmoji: {
@@ -3032,7 +2714,7 @@ const styles = StyleSheet.create({
   },
   detailedInfoTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 5,
   },
   statusBadgeContainer: {
@@ -3061,13 +2743,13 @@ const styles = StyleSheet.create({
   },
   dangerBadgeText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
     marginLeft: 4,
   },
   lostBadgeText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
     marginLeft: 4,
   },
@@ -3077,7 +2759,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ownerLabel: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#555',
     marginRight: 5,
   },
@@ -3091,7 +2773,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   safetyTipsHeader: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 14,
     marginBottom: 8,
     color: '#333',
@@ -3125,7 +2807,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
   },
@@ -3144,7 +2826,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   lostDogCount: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 18,
     color: '#ff3131',
   },
@@ -3167,7 +2849,7 @@ const styles = StyleSheet.create({
   },
   lostDogName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
   lostDogBadge: {
@@ -3179,7 +2861,7 @@ const styles = StyleSheet.create({
   lostDogBadgeText: {
     color: 'white',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   lostDogBreed: {
     fontSize: 14,
@@ -3213,7 +2895,7 @@ const styles = StyleSheet.create({
   },
   stopTrackingText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginLeft: 8,
   },
   noLostDogsEmoji: {
@@ -3241,26 +2923,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 4,
   },
-  onlineMarker: {
-    backgroundColor: '#4CAF50',
-  },
-  offlineMarker: {
-    backgroundColor: '#757575',
-  },
   unsafeMarker: {
     backgroundColor: '#FF5252',
   },
-  dogMarkerImage: {
-    width: 24,
-    height: 24,
-  },
   aggressiveIndicator: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+    top: -8,
+    right: -8,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: colors.danger,
   },
   bottomMapControls: {
     position: 'absolute',
@@ -3282,12 +2956,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     backgroundColor: colors.yellow,
-  },
-  trackingActiveButton: {
-    backgroundColor: '#ff3131', // Red when tracking is active
-  },
-  trackingInactiveButton: {
-    backgroundColor: '#4CAF50', // Green when inactive
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   trackingIndicator: {
     position: 'absolute',
@@ -3316,7 +2986,7 @@ const styles = StyleSheet.create({
   },
   trackCountText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
   },
   detailedInfoContent: {
@@ -3334,7 +3004,7 @@ const styles = StyleSheet.create({
   },
   infoSectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 10,
     color: '#333',
   },
@@ -3345,7 +3015,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     width: '30%',
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#555',
   },
   infoValue: {
@@ -3370,23 +3040,21 @@ const styles = StyleSheet.create({
   },
   viewLostDogsButton: {
     position: 'absolute',
-    bottom: 220, // Higher position to avoid overlapping with bottom buttons
+    top: 30, // Higher position to avoid overlapping with bottom buttons
     left: 20,
     right: 20,
-    backgroundColor: '#ff3131',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Black with 30% opacity
     padding: 14,
     borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,
-    borderWidth: 1,
-    borderColor: '#fff',
     zIndex: 999, // Ensure it appears above other elements
-  },
+},
   viewLostDogsText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: colors.white,
+    fontWeight: '600',
     marginLeft: 10,
     fontSize: 16,
   },
@@ -3398,7 +3066,7 @@ const styles = StyleSheet.create({
   },
   deviceInfoTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 5,
   },
   deviceInfoText: {
@@ -3409,13 +3077,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.black,
     borderRadius: 20,
     elevation: 2,
   },
   closeModalButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: colors.yellow,
+    fontWeight: '600',
     fontSize: 16,
   },
   // Additional styles for enhanced lost dog details
@@ -3428,7 +3096,7 @@ const styles = StyleSheet.create({
   },
   lostTimeLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#ff5252',
   },
   lostTimeValue: {
@@ -3465,7 +3133,7 @@ const styles = StyleSheet.create({
   },
   statusIndicatorText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 12,
     marginLeft: 6,
   },
@@ -3490,7 +3158,7 @@ const styles = StyleSheet.create({
   },
   deviceInfoValue: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#212121',
   },
   locationBox: {
@@ -3506,7 +3174,7 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#212121',
     marginLeft: 8,
   },
@@ -3527,7 +3195,7 @@ const styles = StyleSheet.create({
   },
   coordinatesValue: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#212121',
   },
   locationTimestamp: {
@@ -3539,7 +3207,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 10,
     top: 10,
-    backgroundColor: '#ff5252',
     borderRadius: 15,
     width: 30,
     height: 30,
@@ -3549,19 +3216,25 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 16,
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 20,
     textAlign: 'center',
   },
   statusBoxText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '600',
     fontSize: 14,
+  },
+  animalCounter: {
+    color: colors.yellow,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 15,
   },
 });
 

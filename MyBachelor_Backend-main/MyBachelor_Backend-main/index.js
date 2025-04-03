@@ -86,6 +86,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 // ✅ Mount API Routes
 app.use('/api/animals', animalRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/deviceData', deviceDataRoutes); // ✅ Added missing route
 app.use('/api/territories', territoryRoutes); // ✅ Add territory routes
 app.use('/api/danger-zones', dangerZoneRoutes); // ✅ Add danger zone routes
