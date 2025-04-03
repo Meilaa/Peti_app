@@ -1,5 +1,5 @@
 # This script updates the 'bachelor' repository with changes from local Backend and Fronted directories.
-# It ensures no duplication, improves repository structure, excludes node_modules, and disconnects GitHub credentials after pushing.
+# It removes duplicate folders, improves repository structure, excludes node_modules, and disconnects GitHub credentials after pushing.
 
 # Configuration
 $repoUrl = "https://github.com/arculusdev/bachelor.git"      # Repository URL
@@ -13,6 +13,17 @@ function Handle-Error {
     param ($message)
     Write-Host "Error: $message" -ForegroundColor Red
     exit 1
+}
+
+# Function to compare two directories by file hashes
+function Compare-Directories {
+    param ($dir1, $dir2)
+    $files1 = Get-ChildItem -Path $dir1 -File -Recurse | Get-FileHash
+    $files2 = Get-ChildItem -Path $dir2 -File -Recurse | Get-FileHash
+    if ($files1.Count -ne $files2.Count) { return $false }
+    $hashes1 = $files1 | Sort-Object -Property Path | Select-Object -ExpandProperty Hash
+    $hashes2 = $files2 | Sort-Object -Property Path | Select-Object -ExpandProperty Hash
+    return ($hashes1 -join ",") -eq ($hashes2 -join ",")
 }
 
 # Instructions for the user
@@ -30,7 +41,7 @@ if (-Not (Get-Command git -ErrorAction SilentlyContinue)) {
 # Confirm with the user before proceeding
 Write-Host "Backend path: $backendPath" -ForegroundColor Yellow
 Write-Host "Frontend path: $frontendPath" -ForegroundColor Yellow
-$confirmation = Read-Host "Are you sure you want to update and restructure $localRepoPath with changes from these directories? (yes/y)"
+$confirmation = Read-Host "Are you sure you want to update, restructure, and remove duplicates in $localRepoPath? (yes/y)"
 if ($confirmation -ne "yes" -and $confirmation -ne "y") {
     Write-Host "Operation cancelled." -ForegroundColor Yellow
     exit
@@ -93,7 +104,32 @@ if (-Not (Test-Path $gitignorePath)) {
     }
 }
 
-# Step 5: Restructure the repository
+# Step 5: Remove duplicate folders
+Write-Host "Checking for duplicate folders in the repository..." -ForegroundColor Cyan
+$dirs = Get-ChildItem -Path $localRepoPath -Directory
+$duplicatePairs = @(
+    @{ Keep = "Backend"; Remove = "MyBachelor_Backend-main" },
+    @{ Keep = "Fronted"; Remove = "MyBachelor-testing" }
+)
+$removedCount = 0
+
+foreach ($pair in $duplicatePairs) {
+    $keepDir = Join-Path $localRepoPath $pair.Keep
+    $removeDir = Join-Path $localRepoPath $pair.Remove
+    if (Test-Path $keepDir -and Test-Path $removeDir) {
+        if (Compare-Directories -dir1 $keepDir -dir2 $removeDir) {
+            Write-Host "Duplicate folders detected: $keepDir and $removeDir are identical." -ForegroundColor Yellow
+            Write-Host "Keeping $keepDir and removing $removeDir..." -ForegroundColor Yellow
+            Remove-Item -Path $removeDir -Recurse -Force
+            git rm -r $removeDir
+            $removedCount++
+        } else {
+            Write-Host "Folders $keepDir and $removeDir differ in content; manual review required." -ForegroundColor Yellow
+        }
+    }
+}
+
+# Step 6: Restructure the repository
 Write-Host "Restructuring repository..." -ForegroundColor Cyan
 
 # Define directories for organization
@@ -134,41 +170,22 @@ foreach ($file in $scriptFiles) {
     }
 }
 
-# Rename Fronted/MyBachelor-testing to Frontend/MyBachelor
-$oldFrontendPath = Join-Path $localRepoPath "Fronted/MyBachelor-testing"
-$newFrontendPath = Join-Path $frontendDir "MyBachelor"
-if (Test-Path $oldFrontendPath) {
-    Move-Item -Path $oldFrontendPath -Destination $newFrontendPath -Force
-    Write-Host "Renamed Fronted/MyBachelor-testing to Frontend/MyBachelor" -ForegroundColor Yellow
-    git add $oldFrontendPath
-    git add $newFrontendPath
+# Rename Fronted to Frontend if it exists
+$oldFrontedPath = Join-Path $localRepoPath "Fronted"
+if (Test-Path $oldFrontedPath) {
+    Move-Item -Path $oldFrontedPath -Destination $frontendDir -Force
+    Write-Host "Renamed Fronted to Frontend" -ForegroundColor Yellow
+    git add $oldFrontedPath
+    git add $frontendDir
 }
 
-# Remove the old Fronted directory if empty
-$oldFrontedDir = Join-Path $localRepoPath "Fronted"
-if (Test-Path $oldFrontedDir -and -Not (Get-ChildItem -Path $oldFrontedDir)) {
-    Remove-Item -Path $oldFrontedDir -Force
-    Write-Host "Removed empty Fronted directory" -ForegroundColor Yellow
-    git rm -r $oldFrontedDir
-}
-
-# Move Backend/MyBachelor_Backend-main to Backend/MyBachelor if needed
-$oldBackendPath = Join-Path $localRepoPath "Backend/MyBachelor_Backend-main"
-$newBackendPath = Join-Path $backendDir "MyBachelor"
-if (Test-Path $oldBackendPath) {
-    Move-Item -Path $oldBackendPath -Destination $newBackendPath -Force
-    Write-Host "Renamed Backend/MyBachelor_Backend-main to Backend/MyBachelor" -ForegroundColor Yellow
-    git add $oldBackendPath
-    git add $newBackendPath
-}
-
-# Commit restructuring changes if any
+# Commit restructuring and duplicate removal changes if any
 $restructureChanges = git status --porcelain
 if ($restructureChanges) {
-    git commit -m "Restructured repository: organized files into docs/, scripts/, Frontend/, Backend/"
+    git commit -m "Removed $removedCount duplicate folders and restructured repository: organized files into docs/, scripts/, Frontend/, Backend/"
 }
 
-# Step 6: Sync and update files from Backend and Frontend directories, excluding node_modules
+# Step 7: Sync and update files from Backend and Frontend directories, excluding node_modules
 $sourcePaths = @($backendPath, $frontendPath)
 $modifiedCount = 0
 foreach ($sourcePath in $sourcePaths) {
@@ -180,7 +197,6 @@ foreach ($sourcePath in $sourcePaths) {
                 continue
             }
             $relativePath = $file.FullName.Substring($sourcePath.Length).TrimStart('\')
-            # Adjust target path based on new structure
             $targetBaseDir = if ($sourcePath -eq $backendPath) { $backendDir } else { $frontendDir }
             $targetPath = Join-Path $targetBaseDir $relativePath
 
@@ -210,7 +226,7 @@ foreach ($sourcePath in $sourcePaths) {
     }
 }
 
-# Step 7: Check for changes to commit
+# Step 8: Check for changes to commit
 Write-Host "Checking for changes in the repository..." -ForegroundColor Cyan
 $stagedChanges = git status --porcelain
 if ($stagedChanges) {
@@ -221,7 +237,7 @@ if ($stagedChanges) {
     goto DisconnectCredentials
 }
 
-# Step 8: Set up temporary Git identity if needed
+# Step 9: Set up temporary Git identity if needed
 $userEmail = git config user.email
 $userName = git config user.name
 $needTempIdentity = $false
@@ -232,7 +248,7 @@ if (-not $userEmail -or -not $userName) {
     git config user.name "Temporary User"
 }
 
-# Step 9: Commit changes with a descriptive message
+# Step 10: Commit changes with a descriptive message
 $commitMessage = "Updated $modifiedCount files from local directories on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 Write-Host "Committing changes with message: $commitMessage" -ForegroundColor Cyan
 try {
@@ -245,7 +261,7 @@ try {
     Handle-Error "Failed to commit changes."
 }
 
-# Step 10: Push updates to GitHub
+# Step 11: Push updates to GitHub
 Write-Host "Pushing updates to $repoUrl..." -ForegroundColor Cyan
 try {
     git push origin $branchName
@@ -263,7 +279,7 @@ if ($needTempIdentity) {
     git config --unset user.name
 }
 
-# Step 11: Thoroughly disconnect GitHub credentials
+# Step 12: Thoroughly disconnect GitHub credentials
 :DisconnectCredentials
 Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
 git credential reject https://github.com
