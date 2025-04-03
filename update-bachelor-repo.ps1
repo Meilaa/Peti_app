@@ -1,5 +1,5 @@
 # This script updates the 'bachelor' repository with changes from local Backend and Fronted directories.
-# It ensures no duplication, preserves structure, and disconnects GitHub credentials after pushing.
+# It ensures no duplication, preserves structure, excludes node_modules, and disconnects GitHub credentials after pushing.
 
 # Configuration
 $repoUrl = "https://github.com/arculusdev/bachelor.git"      # Repository URL
@@ -69,25 +69,44 @@ try {
 
 # Step 4: Create or update .gitignore to exclude unnecessary files
 $gitignorePath = Join-Path $localRepoPath ".gitignore"
-if (-Not (Test-Path $gitignorePath)) {
-    Write-Host "Creating .gitignore file..." -ForegroundColor Cyan
-    @"
+$gitignoreContent = @"
+# Ignore node_modules and common build artifacts
 node_modules/
 .env
 dist/
-"@ | Out-File -Encoding utf8 $gitignorePath
+build/
+*.log
+"@
+
+if (-Not (Test-Path $gitignorePath)) {
+    Write-Host "Creating .gitignore file..." -ForegroundColor Cyan
+    $gitignoreContent | Out-File -Encoding utf8 $gitignorePath
     git add $gitignorePath
-    git commit -m "Added .gitignore to exclude unnecessary files"
+    git commit -m "Added .gitignore to exclude node_modules and other artifacts"
+} else {
+    # Update .gitignore if it doesn’t already contain node_modules
+    $existingGitignore = Get-Content -Path $gitignorePath -Raw
+    if ($existingGitignore -notmatch "node_modules/") {
+        Write-Host "Updating .gitignore to include node_modules exclusion..." -ForegroundColor Cyan
+        $existingGitignore + "`n" + $gitignoreContent | Out-File -Encoding utf8 $gitignorePath
+        git add $gitignorePath
+        git commit -m "Updated .gitignore to exclude node_modules"
+    }
 }
 
-# Step 5: Sync and update files from Backend and Frontend directories
+# Step 5: Sync and update files from Backend and Frontend directories, excluding node_modules
 $sourcePaths = @($backendPath, $frontendPath)
 $modifiedCount = 0
 foreach ($sourcePath in $sourcePaths) {
     if (Test-Path $sourcePath) {
         Write-Host "Processing files from $sourcePath..." -ForegroundColor Cyan
-        $sourceFiles = Get-ChildItem -Path $sourcePath -File -Recurse
+        # Exclude node_modules directories during file enumeration
+        $sourceFiles = Get-ChildItem -Path $sourcePath -File -Recurse -Exclude "node_modules"
         foreach ($file in $sourceFiles) {
+            # Skip if the file is within a node_modules directory
+            if ($file.FullName -match [regex]::Escape("node_modules")) {
+                continue
+            }
             $relativePath = $file.FullName.Substring($sourcePath.Length).TrimStart('\')
             $targetPath = Join-Path $localRepoPath $relativePath
 
@@ -127,39 +146,13 @@ if ($stagedChanges) {
     Write-Host $stagedChanges
 } else {
     Write-Host "No changes to commit." -ForegroundColor Green
-    # Even when no changes, we should disconnect GitHub credentials
-    # Step 9: Thoroughly disconnect GitHub credentials
-    Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
-    # Reject all stored credentials for GitHub
-    git credential reject https://github.com
-    # Unset any credential helpers
-    git config --unset credential.helper
-    # Remove any stored tokens in the Windows Credential Manager
-    if (Get-Command cmdkey -ErrorAction SilentlyContinue) {
-        Write-Host "Removing GitHub entries from Windows Credential Manager..." -ForegroundColor Cyan
-        cmdkey /list | Where-Object { $_ -like "*github*" } | ForEach-Object {
-            $target = ($_ -split "Target:")[1].Trim()
-            if ($target) {
-                cmdkey /delete:$target
-            }
-        }
-    }
-    # Reset Git environment variables that might interfere with Expo
-    $env:GIT_ASKPASS = ""
-    $env:SSH_ASKPASS = ""
-
-    # Return to original directory to avoid Git context
-    Set-Location $backendPath
-
-    Write-Host "GitHub connections fully removed. You can now use Expo without interference." -ForegroundColor Green
-    Write-Host "Repository update completed successfully!" -ForegroundColor Green
-    exit
+    # Proceed to disconnect credentials even if no changes
+    goto DisconnectCredentials
 }
 
 # Step 7: Set up temporary Git identity if needed
 $userEmail = git config user.email
 $userName = git config user.name
-
 $needTempIdentity = $false
 if (-not $userEmail -or -not $userName) {
     $needTempIdentity = $true
@@ -174,7 +167,6 @@ Write-Host "Committing changes with message: $commitMessage" -ForegroundColor Cy
 try {
     git commit -m "$commitMessage"
 } catch {
-    # Clean up temporary identity if it was created
     if ($needTempIdentity) {
         git config --unset user.email
         git config --unset user.name
@@ -187,7 +179,6 @@ Write-Host "Pushing updates to $repoUrl..." -ForegroundColor Cyan
 try {
     git push origin $branchName
 } catch {
-    # Clean up temporary identity if it was created
     if ($needTempIdentity) {
         git config --unset user.email
         git config --unset user.name
@@ -202,12 +193,10 @@ if ($needTempIdentity) {
 }
 
 # Step 10: Thoroughly disconnect GitHub credentials
+:DisconnectCredentials
 Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
-# Reject all stored credentials for GitHub
 git credential reject https://github.com
-# Unset any credential helpers
 git config --unset credential.helper
-# Remove any stored tokens in the Windows Credential Manager
 if (Get-Command cmdkey -ErrorAction SilentlyContinue) {
     Write-Host "Removing GitHub entries from Windows Credential Manager..." -ForegroundColor Cyan
     cmdkey /list | Where-Object { $_ -like "*github*" } | ForEach-Object {
@@ -217,11 +206,10 @@ if (Get-Command cmdkey -ErrorAction SilentlyContinue) {
         }
     }
 }
-# Reset Git environment variables that might interfere with Expo
 $env:GIT_ASKPASS = ""
 $env:SSH_ASKPASS = ""
 
-# Return to original directory to avoid Git context
+# Return to original directory
 Set-Location $backendPath
 
 Write-Host "GitHub connections fully removed. You can now use Expo without interference." -ForegroundColor Green
