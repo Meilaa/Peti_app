@@ -11,6 +11,9 @@ const locationRoutes = require('./routes/locationRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const deviceDataRoutes = require('./routes/deviceDataRoutes'); // ✅ Added missing route
 const territoryRoutes = require('./routes/territoryRoutes'); // ✅ Add territory routes
+const dangerZoneRoutes = require('./routes/dangerZoneRoutes'); // ✅ Add danger zone routes
+const calendarEventRoutes = require('./routes/calendarEventRoutes'); // ✅ Add calendar events routes
+const petServicesRoutes = require('./routes/petServicesRoutes'); // ✅ Add pet services routes
 
 const app = express();
 
@@ -19,7 +22,6 @@ app.use(bodyParser.json({ limit: '50mb' })); // Increase JSON size limit
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true })); // Increase URL-encoded size limit
 
 app.use(cors());
-app.use(express.json()); // Set up JSON middleware globally
 
 // Root Test Route
 app.get('/', (req, res) => {
@@ -70,7 +72,10 @@ app.get('/admin/routes', (req, res) => {
       { path: '/api/locations', status: 'Registered' },
       { path: '/api/alerts', status: 'Registered' },
       { path: '/api/deviceData', status: 'Registered' },
-      { path: '/api/territories', status: 'Registered' }
+      { path: '/api/territories', status: 'Registered' },
+      { path: '/api/danger-zones', status: 'Registered' },
+      { path: '/api/calendar-events', status: 'Registered' },
+      { path: '/api/pet-services', status: 'Registered' }
     ]
   });
 });
@@ -88,6 +93,9 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/deviceData', deviceDataRoutes); // ✅ Added missing route
 app.use('/api/territories', territoryRoutes); // ✅ Add territory routes
+app.use('/api/danger-zones', dangerZoneRoutes); // ✅ Add danger zone routes
+app.use('/api/calendar-events', calendarEventRoutes); // ✅ Add calendar events routes
+app.use('/api/pet-services', petServicesRoutes); // ✅ Add pet services routes
 
 // Start Server
 const PORT = 3001; // or any other available port
@@ -98,4 +106,10 @@ app.listen(PORT, () => {
     console.log(` - GET  /admin/routes`);
     console.log(` - GET  /api/territories`);
     console.log(` - GET  /api/territories/test`);
+    console.log(` - GET  /api/danger-zones`);
+    console.log(` - GET  /api/danger-zones/test`);
+    console.log(` - GET  /api/calendar-events`);
+    console.log(` - GET  /api/calendar-events/test`);
+    console.log(` - GET  /api/pet-services/test`);
+    console.log(` - GET  /api/pet-services/nearby`);
 });
