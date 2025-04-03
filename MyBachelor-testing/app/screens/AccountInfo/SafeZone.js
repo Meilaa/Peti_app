@@ -170,21 +170,18 @@ const SafeZone = () => {
       if (!token) {
         throw new Error('No token found');
       }
-
+  
       console.log('📡 Fetching territories...');
-      
       const response = await fetchWithMultipleEndpoints('/api/territories', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      // response is already parsed from fetchWithMultipleEndpoints
+  
       console.log('🗺️ Loaded territories:', response.length);
       setTerritories(response);
-      
-      // Save territories to AsyncStorage as backup
       await AsyncStorage.setItem('territories', JSON.stringify(response));
+      return response; // Return the territories for potential use
     } catch (error) {
       console.error('Error fetching territories:', error);
       
@@ -196,12 +193,13 @@ const SafeZone = () => {
           const parsedTerritories = JSON.parse(savedTerritories);
           console.log('📱 Loaded territories from AsyncStorage:', parsedTerritories.length);
           setTerritories(parsedTerritories);
+          return parsedTerritories;
         }
+        return [];
       } catch (e) {
         console.error('Error loading from AsyncStorage:', e);
+        return [];
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -256,7 +254,6 @@ const SafeZone = () => {
     setIsSaving(true);
     
     try {
-      // First save to local storage
       const tempId = Date.now().toString();
       const newTerritory = {
         _id: tempId,
@@ -266,7 +263,7 @@ const SafeZone = () => {
         animal: selectedAnimal,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        isLocal: true // Mark as local until synced with server
+        isLocal: true
       };
       
       // Add to local state immediately for better UX
@@ -292,9 +289,7 @@ const SafeZone = () => {
       // Now try to save to MongoDB through API
       try {
         const token = await getToken();
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
+        if (!token) throw new Error("No authentication token found");
         
         const apiData = {
           name: name,
@@ -303,60 +298,30 @@ const SafeZone = () => {
           animalId: selectedAnimal
         };
         
-        // Pick the first available API endpoint that works
-        const apiUrls = [
-          `${environments.API_BASE_URL}/api/territories`,
-          'http://localhost:3001/api/territories',
-          'http://127.0.0.1:3001/api/territories'
-        ];
+        const response = await fetch(`${environments.API_BASE_URL}/api/territories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(apiData)
+        });
         
-        let apiSuccess = false;
-        let serverResponse = null;
-        
-        for (const apiUrl of apiUrls) {
-          try {
-            console.log(`Trying to save territory to: ${apiUrl}`);
-            const response = await fetch(apiUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(apiData)
-            });
-            
-            if (!response.ok) {
-              console.log(`Error response from ${apiUrl}: ${response.status}`);
-              continue;
-            }
-            
-            serverResponse = await response.json();
-            console.log("✅ Territory saved to MongoDB:", serverResponse);
-            apiSuccess = true;
-            break;
-          } catch (urlError) {
-            console.log(`Failed to save to ${apiUrl}: ${urlError.message}`);
-          }
-        }
-        
-        if (apiSuccess && serverResponse && serverResponse._id) {
-          // Update the local record with the server ID
-          const syncedTerritories = territories.map(t => 
-            t._id === tempId ? { ...t, _id: serverResponse._id, isLocal: false } : t
-          );
-          setTerritories(syncedTerritories);
-          await AsyncStorage.setItem('territories', JSON.stringify(syncedTerritories));
+        if (response.ok) {
+          const serverResponse = await response.json();
+          console.log("✅ Territory saved to MongoDB:", serverResponse);
           
-          Alert.alert("Success", "Safe zone saved successfully to server");
+          // Update the local record with the server ID and reload all territories
+          await loadTerritories(); // This will refresh the list
+          
+          Alert.alert("Success", "Safe zone saved successfully");
         } else {
-          // If all API endpoints failed but we saved locally
-          Alert.alert(
-            "Partial Success", 
-            "Safe zone saved locally but couldn't sync with server. Will try again when connection is available."
-          );
+          throw new Error("Server returned an error");
         }
       } catch (apiError) {
         console.error("API sync error:", apiError);
+        // Even if API fails, we've saved locally - just refresh the local list
+        await loadTerritories();
         Alert.alert(
           "Saved Locally", 
           "Safe zone was saved to your device but couldn't be synced with the server."
@@ -450,9 +415,17 @@ const SafeZone = () => {
   };
 
   const renderTerritoryItem = ({ item }) => {
-    // Find animal name
-    const animalObj = animals.find(a => a._id === item.animal);
-    const animalName = animalObj ? animalObj.name : 'Unknown';
+    // Find animal name - handle both string IDs and populated animal objects
+    let animalName = 'Unknown';
+    
+    if (typeof item.animal === 'object' && item.animal !== null) {
+      // If animal is populated (from API)
+      animalName = item.animal.name;
+    } else if (typeof item.animal === 'string') {
+      // If animal is just an ID (from local storage)
+      const animalObj = animals.find(a => a._id === item.animal);
+      animalName = animalObj ? animalObj.name : 'Unknown';
+    }
     
     return (
       <TouchableOpacity

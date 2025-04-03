@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -579,7 +580,7 @@ const DangerZone = () => {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity 
@@ -590,7 +591,7 @@ const DangerZone = () => {
               </TouchableOpacity>
             <Text style={styles.headerTitle}>Danger Zone Alerts</Text>
           </View>
-  
+
           <View style={styles.mapContainer}>
             <MapView
               style={styles.map}
@@ -610,7 +611,7 @@ const DangerZone = () => {
                   onPress={() => viewDangerZone(zone)}
                 />
               ))}
-  
+
               {/* Show the current drawing points */}
               {isDrawing && points.length > 0 && (
                 <Polygon
@@ -620,7 +621,7 @@ const DangerZone = () => {
                   strokeWidth={2}
                 />
               )}
-  
+
               {/* Show markers for the points being drawn */}
               {isDrawing && points.map((point, index) => (
                 <Marker
@@ -630,7 +631,7 @@ const DangerZone = () => {
                 />
               ))}
             </MapView>
-  
+
             {showInstructions && !isDrawing && (
               <View style={styles.instructionsOverlay}>
                 <Text style={styles.instructionsTitle}>Create Danger Zone Alerts</Text>
@@ -647,7 +648,7 @@ const DangerZone = () => {
                 </TouchableOpacity>
               </View>
             )}
-  
+
             {isDrawing ? (
               <View style={styles.drawingControls}>
                 <View style={styles.pointsCounter}>
@@ -685,9 +686,10 @@ const DangerZone = () => {
               </View>
             )}
           </View>
-  
+
           <View style={styles.listContainer}>
             <Text style={styles.listTitle}>Your Danger Zones</Text>
+            {/* In your list rendering section */}
             {loading ? (
               <ActivityIndicator size="large" color={colors.primary} />
             ) : dangerZones.length === 0 ? (
@@ -696,15 +698,16 @@ const DangerZone = () => {
                 <Text style={styles.emptyListSubText}>Use the 'Draw Danger Zone' button to create one.</Text>
               </View>
             ) : (
-              <FlatList
-                data={dangerZones}
-                keyExtractor={(item) => item._id}
-                renderItem={renderDangerZoneItem}
-                contentContainerStyle={styles.listContent}
-              />
+              <View style={styles.dangerZoneList}>
+                {dangerZones.map(item => (
+                  <View key={item._id || `danger-zone-${item.name}`}>
+                    {renderDangerZoneItem({ item })}
+                  </View>
+                ))}
+              </View>
             )}
           </View>
-  
+
           <Modal
             animationType="slide"
             transparent={true}
@@ -712,88 +715,89 @@ const DangerZone = () => {
             onRequestClose={() => setModalVisible(false)}
           >
             <View style={styles.modalBackground}>
-              <View style={styles.modalContent}>
-                <ScrollView contentContainerStyle={styles.modalScrollContent}>
-                  <Text style={styles.modalTitle}>Danger Zone Details</Text>
-                  
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Name</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter danger zone name"
-                      value={name}
-                      onChangeText={setName}
-                    />
-                  </View>
-                  
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Description (Optional)</Text>
-                    <TextInput
-                      style={[styles.input, styles.textArea]}
-                      placeholder="Enter description"
-                      value={description}
-                      onChangeText={setDescription}
-                      multiline
-                      numberOfLines={3}
-                    />
-                  </View>
-                  
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Danger Type</Text>
-                    <View style={styles.pickerContainer}>
-                      <SimplePicker
-                        selectedValue={dangerType}
-                        onValueChange={(itemValue) => setDangerType(itemValue)}
-                        items={[{ label: 'Highway', value: 'highway' }, { label: 'River', value: 'river' }, { label: 'Wildlife', value: 'wildlife' }, { label: 'Cliff', value: 'cliff' }, { label: 'Road', value: 'road' }, { label: 'Other', value: 'other' }]}
+              <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalScrollContent}>
+                    <Text style={styles.modalTitle}>Danger Zone Details</Text>
+                    
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Name</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter danger zone name"
+                        value={name}
+                        onChangeText={setName}
                       />
                     </View>
-                  </View>
-                  
-                  <View style={styles.formGroup}>
-                    <Text style={styles.label}>Select Animal</Text>
-                    <View style={styles.pickerContainer}>
-                      <SimplePicker
-                        selectedValue={selectedAnimal}
-                        onValueChange={(itemValue) => setSelectedAnimal(itemValue)}
-                        items={animals.map(animal => ({
-                          label: animal.name,
-                          value: animal._id
-                        }))}
+                    
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Description (Optional)</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Enter description"
+                        value={description}
+                        onChangeText={setDescription}
+                        multiline
+                        numberOfLines={3}
                       />
                     </View>
+                    
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Danger Type</Text>
+                      <View style={styles.pickerContainer}>
+                        <SimplePicker
+                          selectedValue={dangerType}
+                          onValueChange={(itemValue) => setDangerType(itemValue)}
+                          items={[{ label: 'Highway', value: 'highway' }, { label: 'River', value: 'river' }, { label: 'Wildlife', value: 'wildlife' }, { label: 'Cliff', value: 'cliff' }, { label: 'Road', value: 'road' }, { label: 'Other', value: 'other' }]}
+                        />
+                      </View>
+                    </View>
+                    
+                    <View style={styles.formGroup}>
+                      <Text style={styles.label}>Select Animal</Text>
+                      <View style={styles.pickerContainer}>
+                        <SimplePicker
+                          selectedValue={selectedAnimal}
+                          onValueChange={(itemValue) => setSelectedAnimal(itemValue)}
+                          items={animals.map(animal => ({
+                            label: animal.name,
+                            value: animal._id
+                          }))}
+                        />
+                      </View>
+                    </View>
+                    
+                    <View style={styles.modalButtons}>
+                      <TouchableOpacity
+                        style={styles.cancelModalButton}
+                        activeOpacity={0.8}
+                        onPress={() => setModalVisible(false)}
+                        disabled={isSaving}
+                      >
+                        <Text style={styles.buttonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.saveModalButton}
+                        activeOpacity={0.8}
+                        onPress={saveDangerZone}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Text style={styles.buttonText}>Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                  
-                  <View style={styles.modalButtons}>
-                    <TouchableOpacity
-                      style={styles.cancelModalButton}
-                      activeOpacity={0.8}
-                      onPress={() => setModalVisible(false)}
-                      disabled={isSaving}
-                    >
-                      <Text style={styles.buttonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.saveModalButton}
-                      activeOpacity={0.8}
-                      onPress={saveDangerZone}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <ActivityIndicator size="small" color="white" />
-                      ) : (
-                        <Text style={styles.buttonText}>Save</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </View>
+                </View>
+              </ScrollView>
             </View>
           </Modal>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-  
 };
 
 const styles = StyleSheet.create({

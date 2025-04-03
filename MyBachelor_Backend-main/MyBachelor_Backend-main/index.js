@@ -7,8 +7,6 @@ const cors = require('cors');
 const animalRoutes = require('./routes/animalRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const userRoutes = require('./routes/userRoutes');
-const locationRoutes = require('./routes/locationRoutes');
-const alertRoutes = require('./routes/alertRoutes');
 const deviceDataRoutes = require('./routes/deviceDataRoutes'); // ✅ Added missing route
 const territoryRoutes = require('./routes/territoryRoutes'); // ✅ Add territory routes
 const dangerZoneRoutes = require('./routes/dangerZoneRoutes'); // ✅ Add danger zone routes
@@ -88,9 +86,6 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 // ✅ Mount API Routes
 app.use('/api/animals', animalRoutes);
 app.use('/api/devices', deviceRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/locations', locationRoutes);
-app.use('/api/alerts', alertRoutes);
 app.use('/api/deviceData', deviceDataRoutes); // ✅ Added missing route
 app.use('/api/territories', territoryRoutes); // ✅ Add territory routes
 app.use('/api/danger-zones', dangerZoneRoutes); // ✅ Add danger zone routes

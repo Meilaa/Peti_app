@@ -7,7 +7,6 @@ const Animal = require('../models/Animal');
 const WalkPath = require('../models/WalkPath');
 const Territory = require('../models/Territory');
 const DangerZone = require('../models/DangerZone');
-const Alert = require('../models/Alert');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const { isPointInPolygon, calculateDistance } = require('../utils/geofenceUtils');
 
