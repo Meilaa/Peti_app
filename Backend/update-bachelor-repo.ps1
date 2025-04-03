@@ -78,7 +78,12 @@ try {
     Handle-Error "Failed to sync with remote repository. Check network or repository state."
 }
 
-# Step 4: Create or update .gitignore to exclude unnecessary files
+# Step 4: Configure Git to handle line endings (to avoid LF/CRLF warnings)
+Write-Host "Configuring Git line ending settings..." -ForegroundColor Cyan
+git config core.autocrlf false
+git config core.eol lf
+
+# Step 5: Create or update .gitignore to exclude unnecessary files
 $gitignorePath = Join-Path $localRepoPath ".gitignore"
 $gitignoreContent = @"
 # Ignore node_modules and common build artifacts
@@ -104,7 +109,7 @@ if (-Not (Test-Path $gitignorePath)) {
     }
 }
 
-# Step 5: Remove duplicate folders
+# Step 6: Remove duplicate folders
 Write-Host "Checking for duplicate folders in the repository..." -ForegroundColor Cyan
 $dirs = Get-ChildItem -Path $localRepoPath -Directory
 $duplicatePairs = @(
@@ -116,7 +121,7 @@ $removedCount = 0
 foreach ($pair in $duplicatePairs) {
     $keepDir = Join-Path $localRepoPath $pair.Keep
     $removeDir = Join-Path $localRepoPath $pair.Remove
-    if (Test-Path $keepDir -and Test-Path $removeDir) {
+    if ((Test-Path $keepDir) -and (Test-Path $removeDir)) {
         if (Compare-Directories -dir1 $keepDir -dir2 $removeDir) {
             Write-Host "Duplicate folders detected: $keepDir and $removeDir are identical." -ForegroundColor Yellow
             Write-Host "Keeping $keepDir and removing $removeDir..." -ForegroundColor Yellow
@@ -129,7 +134,7 @@ foreach ($pair in $duplicatePairs) {
     }
 }
 
-# Step 6: Restructure the repository
+# Step 7: Restructure the repository
 Write-Host "Restructuring repository..." -ForegroundColor Cyan
 
 # Define directories for organization
@@ -152,7 +157,6 @@ foreach ($file in $docFiles) {
         $dest = Join-Path $docsDir $file
         Move-Item -Path $source -Destination $dest -Force
         Write-Host "Moved $file to docs/" -ForegroundColor Yellow
-        git add $source
         git add $dest
     }
 }
@@ -165,7 +169,6 @@ foreach ($file in $scriptFiles) {
         $dest = Join-Path $scriptsDir $file
         Move-Item -Path $source -Destination $dest -Force
         Write-Host "Moved $file to scripts/" -ForegroundColor Yellow
-        git add $source
         git add $dest
     }
 }
@@ -175,7 +178,6 @@ $oldFrontedPath = Join-Path $localRepoPath "Fronted"
 if (Test-Path $oldFrontedPath) {
     Move-Item -Path $oldFrontedPath -Destination $frontendDir -Force
     Write-Host "Renamed Fronted to Frontend" -ForegroundColor Yellow
-    git add $oldFrontedPath
     git add $frontendDir
 }
 
@@ -185,7 +187,7 @@ if ($restructureChanges) {
     git commit -m "Removed $removedCount duplicate folders and restructured repository: organized files into docs/, scripts/, Frontend/, Backend/"
 }
 
-# Step 7: Sync and update files from Backend and Frontend directories, excluding node_modules
+# Step 8: Sync and update files from Backend and Frontend directories, excluding node_modules
 $sourcePaths = @($backendPath, $frontendPath)
 $modifiedCount = 0
 foreach ($sourcePath in $sourcePaths) {
@@ -226,7 +228,7 @@ foreach ($sourcePath in $sourcePaths) {
     }
 }
 
-# Step 8: Check for changes to commit
+# Step 9: Check for changes to commit
 Write-Host "Checking for changes in the repository..." -ForegroundColor Cyan
 $stagedChanges = git status --porcelain
 if ($stagedChanges) {
@@ -237,7 +239,7 @@ if ($stagedChanges) {
     goto DisconnectCredentials
 }
 
-# Step 9: Set up temporary Git identity if needed
+# Step 10: Set up temporary Git identity if needed
 $userEmail = git config user.email
 $userName = git config user.name
 $needTempIdentity = $false
@@ -248,7 +250,7 @@ if (-not $userEmail -or -not $userName) {
     git config user.name "Temporary User"
 }
 
-# Step 10: Commit changes with a descriptive message
+# Step 11: Commit changes with a descriptive message
 $commitMessage = "Updated $modifiedCount files from local directories on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 Write-Host "Committing changes with message: $commitMessage" -ForegroundColor Cyan
 try {
@@ -261,7 +263,7 @@ try {
     Handle-Error "Failed to commit changes."
 }
 
-# Step 11: Push updates to GitHub
+# Step 12: Push updates to GitHub
 Write-Host "Pushing updates to $repoUrl..." -ForegroundColor Cyan
 try {
     git push origin $branchName
@@ -279,7 +281,7 @@ if ($needTempIdentity) {
     git config --unset user.name
 }
 
-# Step 12: Thoroughly disconnect GitHub credentials
+# Step 13: Thoroughly disconnect GitHub credentials
 :DisconnectCredentials
 Write-Host "Thoroughly disconnecting GitHub credentials..." -ForegroundColor Cyan
 git credential reject https://github.com
