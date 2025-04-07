@@ -7,6 +7,7 @@ const Animal = require('../models/Animal');
 const WalkPath = require('../models/WalkPath');
 const Territory = require('../models/Territory');
 const DangerZone = require('../models/DangerZone');
+const Alert = require('../models/Alert');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const { isPointInPolygon, calculateDistance } = require('../utils/geofenceUtils');
 
@@ -35,7 +36,20 @@ router.post('/', async (req, res) => {
                 const animal = await Animal.findById(device.animal).exec();
                 if (!animal) throw new Error(`Animal associated with device ${ident} not found`);
 
-                let timestamp = new Date(data['timestamp'] * 1000); // Assuming timestamp is in seconds
+                // Ensure timestamp is a valid Date object
+                let timestamp;
+                if (!data['timestamp']) {
+                    throw new Error(`Missing timestamp for device ${ident}`);
+                }
+
+                // Check if timestamp is in seconds (if so, multiply by 1000)
+                if (typeof data['timestamp'] === 'number' && data['timestamp'] < 10000000000) {
+                    timestamp = new Date(data['timestamp'] * 1000);
+                } else {
+                    timestamp = new Date(data['timestamp']);
+                }
+
+                // Validate the timestamp
                 if (isNaN(timestamp.getTime())) {
                     throw new Error(`Invalid timestamp for device ${ident}`);
                 }
@@ -123,11 +137,11 @@ router.post('/', async (req, res) => {
                         console.log(`Device ${ident}: Movement detected, starting movement timer`);
                     }
                     
-                    // Check if we've been moving for 2+ minutes
+                    // Check if we've been moving for 5+ minutes
                     const movementDuration = timestamp - deviceTracker.movementStartTime;
                     
-                    // If not already saving and we've been moving for 2+ minutes, start saving
-                    if (!deviceTracker.isSaving && movementDuration >= 2 * 60 * 1000) {
+                    // If not already saving and we've been moving for 5+ minutes, start saving
+                    if (!deviceTracker.isSaving && movementDuration >= 5 * 60 * 1000) {
                         deviceTracker.isSaving = true;
                         console.log(`Device ${ident}: Started tracking movement after ${Math.round(movementDuration/1000)} seconds of activity`);
                         
@@ -159,8 +173,8 @@ router.post('/', async (req, res) => {
                         deviceTracker.movementStartTime = null; // Reset movement start time since movement has stopped
                     }
                     
-                    // Check if we should stop saving (1+ minute of false) (changed from 2 minutes)
-                    if (deviceTracker.isSaving && deviceTracker.falseDuration >= 1 * 60 * 1000) {
+                    // Check if we should stop saving (5+ minutes of false)
+                    if (deviceTracker.isSaving && deviceTracker.falseDuration >= 5 * 60 * 1000) {
                         console.log(`Device ${ident}: Stopping track after ${Math.round(deviceTracker.falseDuration/1000)} seconds of inactivity`);
                         deviceTracker.isSaving = false;
                         deviceTracker.falseDuration = 0; // Reset false duration after stopping
@@ -387,10 +401,7 @@ function calculateDuration(coordinates) {
     }
 
     return Math.round(totalDurationMs / (1000 * 60)); // Return duration in minutes
-}
-
-  
-  
+} 
 
 // Modify the GET /walks/:deviceId route to include distance and duration
 router.get('/walks/:deviceId', authenticateJWT, async (req, res) => {

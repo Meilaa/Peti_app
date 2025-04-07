@@ -17,6 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "expo": "^52.0.43",
     "express": "^4.18.2",
     "mongoose": "^7.5.0"
   },

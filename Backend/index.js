@@ -7,6 +7,7 @@ const cors = require('cors');
 const animalRoutes = require('./routes/animalRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const userRoutes = require('./routes/userRoutes');
+const alertRoutes = require('./routes/alertRoutes');
 const deviceDataRoutes = require('./routes/deviceDataRoutes'); // ✅ Added missing route
 const territoryRoutes = require('./routes/territoryRoutes'); // ✅ Add territory routes
 const dangerZoneRoutes = require('./routes/dangerZoneRoutes'); // ✅ Add danger zone routes
@@ -20,7 +21,7 @@ app.use(bodyParser.json({ limit: '50mb' })); // Increase JSON size limit
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true })); // Increase URL-encoded size limit
 
 app.use(cors());
-
+app.use(express.json());
 // Root Test Route
 app.get('/', (req, res) => {
   res.send('API is running...');
@@ -67,6 +68,7 @@ app.get('/admin/routes', (req, res) => {
       { path: '/api/animals', status: 'Registered' },
       { path: '/api/devices', status: 'Registered' },
       { path: '/api/users', status: 'Registered' },
+      { path: '/api/alerts', status: 'Registered' },
       { path: '/api/locations', status: 'Registered' },
       { path: '/api/alerts', status: 'Registered' },
       { path: '/api/deviceData', status: 'Registered' },
@@ -87,6 +89,7 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 app.use('/api/animals', animalRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/alerts', alertRoutes);
 app.use('/api/deviceData', deviceDataRoutes); // ✅ Added missing route
 app.use('/api/territories', territoryRoutes); // ✅ Add territory routes
 app.use('/api/danger-zones', dangerZoneRoutes); // ✅ Add danger zone routes
