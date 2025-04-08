@@ -6,10 +6,10 @@ const path = require('path');
 
 
 // Configuration
-const DEVICE_PORT = 5027; // TCP port for TMT250 device connections
+const DEVICE_PORT = 8080; // TCP port for TMT250 device connections
 const BACKEND_API_URL = "http://localhost:3001/api/deviceData";
 const DEBUG_LOG = true; // Set to false in production
-const SOCKET_TIMEOUT = 300000; // 5 minute socket timeout
+const SOCKET_TIMEOUT = 300000; 
 const FAILED_MESSAGES_FILE = 'failed-messages.json'; // File for failed backend requests
 const RAW_PACKET_LOG = 'raw-packets.log'; // File to save raw packet data
 const SAVE_RAW_PACKETS = true; // Whether to save raw packets to disk
@@ -1123,7 +1123,7 @@ function hexDump(buffer, bytesPerLine = 16) {
 }
 
 // Create HTTP server for status monitoring
-const MONITOR_PORT = 5030;
+const MONITOR_PORT = 8080;
 const monitorServer = http.createServer((req, res) => {
     // Basic CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
