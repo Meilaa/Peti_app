@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -12,7 +11,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import MapView, { Marker, Polygon } from 'react-native-maps';
@@ -21,6 +21,13 @@ import colors from '../../constants/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const { width, height } = Dimensions.get('window');
+
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return size * scale * 1.2; // Increased by 20% for bigger fonts
+};
 
 // Simple fallback component for the picker if not available
 const SimplePicker = ({ selectedValue, onValueChange, items }) => {
@@ -583,13 +590,15 @@ const DangerZone = () => {
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity 
+            <View style={styles.backButtonContainer}>
+              <TouchableOpacity 
                 style={styles.backButton} 
                 onPress={() => router.back()}
               >
                 <Ionicons name="chevron-back" size={24} color={colors.white} />
               </TouchableOpacity>
-            <Text style={styles.headerTitle}>Danger Zone Alerts</Text>
+            </View>
+            <Text style={styles.title}>Danger Zone Alerts</Text>
           </View>
 
           <View style={styles.mapContainer}>
@@ -804,36 +813,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
+    paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingHorizontal: width * 0.04,
+    paddingVertical: height * 0.015,
     backgroundColor: colors.yellow,
-    // Removed justifyContent: 'center'
   },
-  
   backButtonContainer: {
     position: 'absolute',
-    left: 16, // Ensure the back button is on the left side
+    left: width * 0.04,
   },
-  
-  headerTitle: {
-    fontSize: 22,
+
+  title: {
+    fontSize: normalize(24),
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 30, // Position it above the tracker card
-    flex: 1, // Ensures the title stays centered in the remaining space
+    marginTop: height * 0.03,
   },
   mapContainer: {
-    height: 450,
-    margin: 16,
-    borderRadius: 16,
+    height: height * 0.65,
+    margin: width * 0.04,
+    borderRadius: width * 0.04,
     overflow: 'hidden',
     elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
@@ -842,38 +850,38 @@ const styles = StyleSheet.create({
   },
   mapButtons: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    bottom: height * 0.02,
+    left: width * 0.04,
+    right: width * 0.04,
     alignItems: 'center',
   },
   drawButton: {
     position: 'absolute',
-    bottom: 16,
-    left: '40%', // Centers the button horizontally
-    transform: [{ translateX: -65 }], // Adjust this value to half of the button's width (for a 130px width button)
+    bottom: height * 0.02,
+    left: '30%',
+    transform: [{ translateX: -width * 0.15 }],
     backgroundColor: colors.black,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 30,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.08,
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: height * 0.003 },
     shadowOpacity: 0.25,
     shadowRadius: 5,
   },
   drawingControls: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    bottom: height * 0.02,
+    left: width * 0.04,
+    right: width * 0.04,
     flexDirection: 'COLUMN',
     alignItems: 'center',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
+    gap: height * 0.01,
   },
   pointsRow: {
     flexDirection: 'row',
@@ -883,14 +891,14 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: colors.black,
-    paddingVertical: 12, // Reduced padding
-    paddingHorizontal: 25, // Reduced padding
-    borderRadius: 10,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.06,
+    borderRadius: width * 0.02,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     borderWidth: 1,
@@ -898,14 +906,14 @@ const styles = StyleSheet.create({
   },
   finishButton: {
     backgroundColor: colors.yellow,
-    paddingVertical: 12, // Reduced padding
-    paddingHorizontal: 25, // Reduced padding
-    borderRadius: 10,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.06,
+    borderRadius: width * 0.02,
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     borderWidth: 1,
@@ -915,102 +923,104 @@ const styles = StyleSheet.create({
   },
   pointsCounter: {
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.04,
+    borderRadius: width * 0.05,
     alignItems: 'center',
     width: '80%',
   },
   pointsText: {
     color: 'white',
     fontWeight: '600',
+    fontSize: normalize(16),
   },
   minPointsText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: normalize(12),
   },
   buttonText: {
     color: colors.white,
     fontWeight: '600',
-    marginLeft: 5,
+    marginLeft: width * 0.01,
+    fontSize: normalize(16),
   },
   listContainer: {
     flex: 1,
-    padding: 12,
+    padding: width * 0.03,
   },
   listTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: height * 0.01,
     textAlign: 'center',
   },
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: height * 0.03,
   },
   emptyListContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: height * 0.03,
   },
   emptyListText: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.white,
   },
   emptyListSubText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.white,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: height * 0.01,
   },
   territoryItem: {
     backgroundColor: 'white',
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: width * 0.02,
+    marginBottom: height * 0.015,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: height * 0.001 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
   territoryItemContent: {
     flexDirection: 'row',
-    padding: 12,
+    padding: width * 0.03,
   },
   territoryDetails: {
     flex: 1,
   },
   territoryName: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
   },
   territoryInfo: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.gray,
-    marginTop: 4,
+    marginTop: height * 0.005,
   },
   dangerTypeTag: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.danger,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginTop: 8,
+    paddingHorizontal: width * 0.02,
+    paddingVertical: height * 0.005,
+    borderRadius: width * 0.02,
+    marginTop: height * 0.01,
     alignSelf: 'flex-start',
   },
   dangerTypeText: {
     color: 'white',
-    marginLeft: 5,
+    marginLeft: width * 0.01,
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: normalize(12),
   },
   territoryActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   actionButton: {
-    marginLeft: 16,
+    marginLeft: width * 0.04,
   },
   modalBackground: {
     flex: 1,
@@ -1020,51 +1030,52 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: width * 0.02,
+    padding: width * 0.05,
     width: '90%',
     maxHeight: '80%',
   },
   modalScrollContent: {
-    paddingBottom: 20,
+    paddingBottom: height * 0.03,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: height * 0.02,
     textAlign: 'center',
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: height * 0.02,
   },
   label: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: normalize(14),
+    marginBottom: height * 0.01,
     fontWeight: '600',
   },
   input: {
     backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: width * 0.02,
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.012,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    fontSize: normalize(16),
   },
   textArea: {
-    height: 80,
+    height: height * 0.1,
     textAlignVertical: 'top',
   },
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderRadius: width * 0.02,
     backgroundColor: '#f5f5f5',
-    padding: 12,
+    padding: width * 0.03,
   },
   selectedValueText: {
-    fontSize: 14,
+    fontSize: normalize(14),
     fontWeight: '600',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
     color: colors.primary,
   },
   optionsContainer: {
@@ -1072,14 +1083,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   pickerOption: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: height * 0.012,
+    paddingHorizontal: width * 0.04,
     backgroundColor: colors.yellow,
-    borderRadius: 8,
-    margin: 5,
+    borderRadius: width * 0.02,
+    margin: width * 0.01,
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     borderWidth: 1,
@@ -1091,7 +1102,7 @@ const styles = StyleSheet.create({
   pickerOptionText: {
     color: colors.black,
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: normalize(14),
   },
   pickerOptionTextSelected: {
     color: 'white',
@@ -1099,19 +1110,19 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: height * 0.03,
   },
   cancelModalButton: {
     backgroundColor: colors.black,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.06,
+    borderRadius: width * 0.02,
     flex: 1,
-    marginRight: 8,
+    marginRight: width * 0.02,
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     borderWidth: 1,
@@ -1119,15 +1130,15 @@ const styles = StyleSheet.create({
   },
   saveModalButton: {
     backgroundColor: colors.yellow,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.06,
+    borderRadius: width * 0.02,
     flex: 1,
-    marginLeft: 8,
+    marginLeft: width * 0.02,
     alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     borderWidth: 1,
@@ -1136,33 +1147,34 @@ const styles = StyleSheet.create({
   instructionsOverlay: {
     position: 'absolute',
     top: '20%',
-    left: 20,
-    right: 20,
+    left: width * 0.05,
+    right: width * 0.05,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 20,
-    borderRadius: 10,
+    padding: width * 0.05,
+    borderRadius: width * 0.02,
     alignItems: 'center',
   },
   instructionsTitle: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 18,
-    marginBottom: 10,
+    fontSize: normalize(18),
+    marginBottom: height * 0.01,
   },
   instructionsText: {
     color: 'white',
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 16,
+    lineHeight: height * 0.03,
+    marginBottom: height * 0.02,
+    fontSize: normalize(14),
   },
   instructionsButton: {
     backgroundColor: colors.yellow,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.04,
+    borderRadius: width * 0.02,
     elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     borderWidth: 1,
@@ -1171,6 +1183,7 @@ const styles = StyleSheet.create({
   instructionsButtonText: {
     color: colors.black,
     fontWeight: '600',
+    fontSize: normalize(14),
   },
 });
 

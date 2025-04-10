@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -15,6 +17,15 @@ import { useNavigation } from 'expo-router';
 import colors from '../../constants/colors';
 import environments from '../../constants/enviroments';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 const ActivityHistory = () => {
   const navigation = useNavigation();
@@ -280,80 +291,80 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
-    padding: 16,
+    padding: width * 0.04,
   },
   backArrow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: height * 0.02,
     borderRadius: 50,
     backgroundColor: colors.white,
-    width: 50,
+    width: width * 0.12,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    marginTop: 45,
+    marginBottom: height * 0.02,
+    marginTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.07,
   },
   backButton: {
-    padding: 10,
-    marginRight: 8,
+    padding: width * 0.025,
+    marginRight: width * 0.02,
   },
   arrowButton: {
-    padding: 10,
+    padding: width * 0.025,
   },
   disabledArrow: {
     opacity: 0.3,
   },
   headerText: {
-    fontSize: 22,
+    fontSize: normalize(22),
     fontWeight: '600',
     color: colors.black,
   },
   datePickerButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: height * 0.012,
+    paddingHorizontal: width * 0.04,
     backgroundColor: colors.white,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.black,
-    marginBottom: 12,
+    marginBottom: height * 0.015,
     alignSelf: 'center',
   },
   datePickerText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
     color: colors.black,
   },
   mapContainer: {
-    height: 200,
-    marginBottom: 20,
+    height: height * 0.25,
+    marginBottom: height * 0.025,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: colors.black,
-    marginTop: 10,
+    marginTop: height * 0.012,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
   walkTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.01,
     backgroundColor: colors.white,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.black,
-    marginHorizontal: 4,
-    justifyContent: 'center',  // vertically centers content
-    alignItems: 'center',      // horizontally centers content
-    marginVertical: 2,
+    marginHorizontal: width * 0.01,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: height * 0.002,
   },  
   walkTabText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.black,
   },
   selectedWalkTab: {
@@ -363,36 +374,36 @@ const styles = StyleSheet.create({
     color: colors.yellow,
   },
   noDataText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
     textAlign: 'center',
-    marginVertical: 20,
+    marginVertical: height * 0.025,
   },
   walkInfo: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '500',
     color: colors.black,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: height * 0.01,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '90%', // Adjusted width for smaller screens
+    width: '90%',
     position: 'absolute',
-    top: 20, // Reduced top margin
-    left: 12,
+    top: Platform.OS === 'ios' ? height * 0.05 : height * 0.03,
+    left: width * 0.03,
   },
   button: {
     backgroundColor: colors.black,
-    paddingVertical: 5, // Reduced vertical padding
-    paddingHorizontal: 10, // Adjusted horizontal padding
-    borderRadius: 40, // Slightly smaller radius
-    width: '30%', // Adjusted button width
+    paddingVertical: height * 0.006,
+    paddingHorizontal: width * 0.025,
+    borderRadius: 40,
+    width: '30%',
   },
   buttonText: {
     color: colors.yellow,
-    fontSize: 16,  // Smaller font size
+    fontSize: normalize(16),
     fontWeight: '400',
     textAlign: 'center',
     paddingBottom: 2,

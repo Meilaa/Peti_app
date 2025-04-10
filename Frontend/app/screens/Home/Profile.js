@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Pressable, ScrollView, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import colors from '../../constants/colors';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 const AccountPage = () => {
   const router = useRouter();
@@ -104,27 +114,143 @@ const AccountPage = () => {
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: { flexGrow: 1 },
-  container: { flex: 1, backgroundColor: colors.white, padding: 16, alignItems: 'center' },
-  header: { fontSize: 24, fontWeight: '600', marginVertical: 16 },
-  menuContainer: { width: '100%', borderRadius: 10, padding: 3, backgroundColor: colors.yellow },
-  iconContainer: { borderRadius: 50, borderWidth:1, borderColor: colors.black,  width: 35, height: 35, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center' },
-  iconDiv: { textAlign: 'center' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.yellow, padding: 12, borderBottomWidth: 1, borderColor: colors.black },
-  menuItem1: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.yellow, padding: 12 },
-  menuText: { fontSize: 14, fontWeight: '500', color: colors.black, flex: 1, marginHorizontal: 12 },
-  dogImage: { width: 150, height: 150, resizeMode: 'contain', marginVertical: 24 },
-  logoutButton: { backgroundColor: colors.yellow, padding: 12, borderRadius: 8, width: '100%', alignItems: 'center' },
-  logoutText: { color: colors.black, fontSize: 16, fontWeight: '600' },
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-  modalContent: { width: '90%', backgroundColor: colors.white, borderRadius: 10, padding: 15, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
-  modalTitle: { fontSize: 18, fontWeight: '600', textAlign: 'center', flex: 1, marginBottom: 10},
-  closeButton: { position: 'absolute', right: -5, top: -13, padding: 10 },
-  modalSubheader: { fontSize: 14, marginBottom: 10, textAlign: 'center' },
-  contactInfo: { alignItems: 'flex-start', width: '100%', backgroundColor: colors.yellow, borderRadius: 10, padding: 18, marginHorizontal: 10 },
-  contactText: { fontSize: 16, lineHeight: 24 },
-  menuItemText: { fontSize: 14, fontWeight: '500', color: colors.black, flex: 1, marginHorizontal: 12 },
+  scrollContainer: { 
+    flexGrow: 1 
+  },
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.white, 
+    padding: width * 0.05, 
+    paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    alignItems: 'center' 
+  },
+  header: { 
+    fontSize: normalize(28), 
+    fontWeight: '600', 
+    marginVertical: height * 0.025 
+  },
+  menuContainer: { 
+    width: '100%', 
+    borderRadius: width * 0.03, 
+    padding: width * 0.015, 
+    backgroundColor: colors.yellow 
+  },
+  iconContainer: { 
+    borderRadius: width * 0.15, 
+    borderWidth: 1, 
+    borderColor: colors.black,  
+    width: width * 0.11, 
+    height: width * 0.11, 
+    backgroundColor: colors.white, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  iconDiv: { 
+    textAlign: 'center' 
+  },
+  menuItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: colors.yellow, 
+    padding: width * 0.04, 
+    borderBottomWidth: 1, 
+    borderColor: colors.black 
+  },
+  menuItem1: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: colors.yellow, 
+    padding: width * 0.04 
+  },
+  menuText: { 
+    fontSize: normalize(16), 
+    fontWeight: '500', 
+    color: colors.black, 
+    flex: 1, 
+    marginHorizontal: width * 0.04 
+  },
+  dogImage: { 
+    width: width * 0.45, 
+    height: width * 0.45, 
+    resizeMode: 'contain', 
+    marginVertical: height * 0.04 
+  },
+  logoutButton: { 
+    backgroundColor: colors.yellow, 
+    padding: width * 0.04, 
+    borderRadius: width * 0.025, 
+    width: '100%', 
+    alignItems: 'center' 
+  },
+  logoutText: { 
+    color: colors.black, 
+    fontSize: normalize(18), 
+    fontWeight: '600' 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)' 
+  },
+  modalContent: { 
+    width: '90%', 
+    maxWidth: width * 0.85,
+    backgroundColor: colors.white, 
+    borderRadius: width * 0.03, 
+    padding: width * 0.05, 
+    alignItems: 'center', 
+    shadowColor: '#000', 
+    shadowOpacity: 0.25, 
+    shadowRadius: 4, 
+    shadowOffset: { width: 0, height: 2 }, 
+    elevation: 5 
+  },
+  modalHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    width: '100%' 
+  },
+  modalTitle: { 
+    fontSize: normalize(20), 
+    fontWeight: '600', 
+    textAlign: 'center', 
+    flex: 1, 
+    marginBottom: height * 0.015
+  },
+  closeButton: { 
+    position: 'absolute', 
+    right: -width * 0.015, 
+    top: -height * 0.02, 
+    padding: width * 0.03 
+  },
+  modalSubheader: { 
+    fontSize: normalize(16), 
+    marginBottom: height * 0.015, 
+    textAlign: 'center' 
+  },
+  contactInfo: { 
+    alignItems: 'flex-start', 
+    width: '100%', 
+    backgroundColor: colors.yellow, 
+    borderRadius: width * 0.03, 
+    padding: width * 0.05, 
+    marginHorizontal: width * 0.03 
+  },
+  contactText: { 
+    fontSize: normalize(18), 
+    lineHeight: normalize(28) 
+  },
+  menuItemText: { 
+    fontSize: normalize(16), 
+    fontWeight: '500', 
+    color: colors.black, 
+    flex: 1, 
+    marginHorizontal: width * 0.04 
+  },
 });
 
 export default AccountPage;

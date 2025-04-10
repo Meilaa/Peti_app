@@ -9,12 +9,23 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import RNPickerSelect from 'react-native-picker-select';
 import colors from '../../constants/colors';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return Math.round(size * scale);
+};
 
 const DogDetails = () => {
   const [breedLabel, setBreedLabel] = useState('');
@@ -45,58 +56,69 @@ const DogDetails = () => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.push('..')}
-          >
-            <Text style={styles.navButtonText}>Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton} onPress={handleNext}>
-            <Text style={styles.navButtonText}>Next</Text>
-          </TouchableOpacity>
-        </View>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push('..')}
+            >
+              <Text style={styles.buttonText}>Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleNext}>
+              <Text style={styles.buttonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
 
-        <Text style={styles.title}>Tell Us About Your Pet!</Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>Tell Us About Your Pet!</Text>
+          </View>
 
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>What is your Pet's Breed?</Text>
-          <View style={styles.pickerContainer}>
-            <RNPickerSelect
-              onValueChange={(value, index) => {
-                if (value) {
-                  setBreedLabel(breedItems[index - 1].label);
-                }
-              }}
-              items={breedItems}
-              placeholder={{ label: 'Select a breed...', value: null }}
-              style={pickerSelectStyles}
-              useNativeAndroidPickerStyle={false}
-              Icon={() => (
-                <AntDesign name="down" size={20} color={colors.yellow} style={styles.arrowIcon} />
-              )}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>What is your Pet's Breed?</Text>
+            <View style={styles.pickerContainer}>
+              <RNPickerSelect
+                onValueChange={(value, index) => {
+                  if (value) {
+                    setBreedLabel(breedItems[index - 1].label);
+                  }
+                }}
+                items={breedItems}
+                placeholder={{ label: 'Select a breed...', value: null }}
+                style={pickerSelectStyles}
+                useNativeAndroidPickerStyle={false}
+                Icon={() => (
+                  <AntDesign name="down" size={normalize(20)} color={colors.black} style={styles.arrowIcon} />
+                )}
+                touchableWrapperProps={{
+                  activeOpacity: 1
+                }}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>How old is your pet?</Text>
+            <TextInput
+              style={styles.input}
+              value={age}
+              placeholder="Enter age in years..."
+              placeholderTextColor={colors.gray}
+              keyboardType="numeric"
+              onChangeText={setAge}
             />
           </View>
-        </View>
 
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>How old is your pet?</Text>
-          <TextInput
-            style={styles.textInput}
-            value={age}
-            placeholder="Enter age in years..."
-            keyboardType="numeric"
-            onChangeText={setAge}
-          />
-        </View>
-
-        <Image
-          source={require('../../../assets/images/dog_pics.png')}
-          style={styles.image}
-        />
-      </ScrollView>
+          <View style={styles.imageContainer}>
+            <Image
+              source={require('../../../assets/images/dog_pics.png')}
+              style={styles.image}
+            />
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 };
@@ -105,7 +127,6 @@ const breedItems = [
   { label: 'Labrador Retriever', value: 'labrador_retriever' },
   { label: 'German Shepherd', value: 'german_shepherd' },
   { label: 'Golden Retriever', value: 'golden_retriever' },
-  { label: 'Mixed', value: 'mixed' },
   { label: 'Bulldog', value: 'bulldog' },
   { label: 'Beagle', value: 'beagle' },
   { label: 'Poodle', value: 'poodle' },
@@ -147,6 +168,7 @@ const breedItems = [
   { label: 'Belgian Malinois', value: 'belgian_malinois' },
   { label: 'Rhodesian Ridgeback', value: 'rhodesian_ridgeback' },
   { label: 'Bernese Mountain Dog', value: 'bernese_mountain_dog' },
+  { label: 'Mixed', value: 'mixed' },
 ];
 
 
@@ -156,90 +178,134 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
   },
   scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
-    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? height * 0.05 : height * 0.04,
+    paddingBottom: height * 0.05,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '90%',
-    position: 'absolute',
-    top: 40,
+    width: '75%',
+    marginBottom: height * 0.06,
+    marginTop: height * 0.02,
   },
-  navButton: {
+  button: {
     backgroundColor: colors.black,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 40,
-    width: '30%',
+    paddingVertical: height * 0.008,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    width: width * 0.3,
+    alignItems: 'center',
   },
-  navButtonText: {
+  buttonText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     textAlign: 'center',
-    paddingBottom: 2,
+    paddingBottom: height * 0.005,
+  },
+  textContainer: {
+    alignItems: 'center',
+    marginTop: height * 0.05,
+    marginBottom: height * 0.04,
   },
   title: {
-    fontSize: 24,
-    marginTop: 80,
-    marginBottom: 15,
-    color: colors.black,
+    fontSize: normalize(28),
     textAlign: 'center',
+    color: colors.black,
+    marginBottom: height * 0.03,
+    fontWeight: '500',
   },
-  inputWrapper: {
-    width: '90%',
-    marginBottom: 15,
+  inputContainer: {
+    width: '100%',
+    marginBottom: height * 0.05,
+    paddingHorizontal: width * 0.06,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: normalize(16),
     color: colors.black,
-    marginBottom: 8,
+    marginBottom: height * 0.02,
     textAlign: 'center',
-    marginVertical: 8,
+    fontWeight: '500',
   },
   pickerContainer: {
     borderRadius: 10,
-    marginTop: 5,
+    marginTop: height * 0.01,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  textInput: {
-    padding: 10,
-    fontSize: 16,
-    color: colors.black,
+  input: {
+    height: height * 0.06,
+    borderColor: colors.white,
+    borderWidth: 1,
+    paddingLeft: width * 0.03,
     backgroundColor: colors.white,
     borderRadius: 10,
-    width: '100%',
+    fontSize: normalize(16),
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: height * 0.05,
+    marginTop: height * 0.02,
   },
   image: {
-    width: 200,
-    height: 260,
-    marginBottom: 20,
+    width: Math.min(width * 0.7, 200),
+    height: Math.min(height * 0.3, 260),
+    resizeMode: 'contain',
   },
   arrowIcon: {
     position: 'absolute',
-    right: 5,
-    top: 12,
+    right: width * 0.03,
+    top: height * 0.015,
+    zIndex: 1,
   },
 });
 
 const pickerSelectStyles = StyleSheet.create({
   inputAndroid: {
-    fontSize: 16,
-    paddingHorizontal: 10,
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    fontSize: normalize(16),
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.012,
     color: colors.black,
     width: '100%',
-    paddingVertical: 10,
+    height: height * 0.06,
   },
   inputIOS: {
-    fontSize: 16,
-    paddingHorizontal: 10,
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    fontSize: normalize(16),
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.012,
     color: colors.black,
     width: '100%',
-    paddingVertical: 10,
+    height: height * 0.06,
+  },
+  placeholder: {
+    color: colors.gray,
+  },
+  viewContainer: {
+    width: '100%',
   },
 });
 

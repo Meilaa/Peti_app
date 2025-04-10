@@ -8,11 +8,29 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '../../constants/colors';
 import enviroments from '../../constants/enviroments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return size * scale;
+};
+
+// Responsive dimensions
+const wp = (percentage) => {
+  return (width * percentage) / 100;
+};
+
+const hp = (percentage) => {
+  return (height * percentage) / 100;
+};
 
 const Register = () => {
   const [username, setUsername] = useState('Meila');
@@ -119,7 +137,7 @@ const Register = () => {
         </View>
 
         <Text style={styles.infoText}>
-          Let’s keep you and your furry friend’s data safe and sound!
+          Let's keep you and your furry friend's data safe and sound!
         </Text>
         <Text style={styles.infoText1}>
           Create a strong password with at least 10 characters, including uppercase and lowercase letters, a number, and a special symbol.
@@ -133,50 +151,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
+
   },
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    paddingTop: 30,
+    paddingTop: Platform.OS === 'ios' ? hp(5) : hp(4),
   },
   title: {
-    fontSize: 24,
+    fontSize: normalize(24),
     textAlign: 'center',
     color: colors.black,
-    marginBottom: 10,
+    marginVertical: hp(2),
   },
   inputContainer: {
-    width: '80%',
-    marginBottom: 8,
-    marginTop: 8,
+    width: wp(80),
+    marginBottom: hp(1.5),
+    marginTop: hp(1.5),
   },
   label: {
-    fontSize: 14,
+    fontSize: normalize(16),
     color: colors.black,
-    marginBottom: 4,
+    marginBottom: hp(0.5),
   },
   input: {
-    height: 40,
+    height: hp(6),
     borderColor: colors.white,
     borderWidth: 1,
-    paddingLeft: 8,
+    paddingLeft: wp(2.5),
     backgroundColor: colors.white,
-    borderRadius: 8,
+    borderRadius: wp(2),
+    fontSize: normalize(16),
   },
   fixedSizeInput: {
-    height: 40,
-    width: 230,
+    height: hp(6),
+    width: Math.min(wp(60), 230),
     borderColor: colors.white,
     borderWidth: 1,
-    paddingLeft: 8,
+    paddingLeft: wp(2.5),
     backgroundColor: colors.white,
-    borderRadius: 8,
+    borderRadius: wp(2),
+    fontSize: normalize(16),
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '80%',
+    width: wp(80),
   },
   checkboxContainerOne: {
     flexDirection: 'column',
@@ -184,59 +205,59 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: wp(4),
   },
   checkbox: {
-    width: 35,
-    height: 35,
+    width: wp(9),
+    height: wp(9),
     borderWidth: 2,
     borderColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    marginTop: 5,
+    borderRadius: wp(2),
+    marginTop: hp(1),
   },
   checkboxInner: {
-    width: 15,
-    height: 15,
+    width: wp(4),
+    height: wp(4),
     backgroundColor: colors.white,
   },
   showText: {
-    fontSize: 14,
+    fontSize: normalize(16),
     color: colors.black,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '75%',
-    marginBottom: 30,
-    marginTop: 10,
+    width: wp(75),
+    marginBottom: hp(4),
+    marginTop: hp(2),
   },
   button: {
     backgroundColor: colors.black,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    width: '30%',
+    paddingVertical: hp(0.8),
+    paddingHorizontal: wp(5),
+    borderRadius: wp(6),
+    width: wp(30),
     alignItems: 'center',
   },
   buttonText: {
     color: colors.yellow,
-    fontSize: 14,
+    fontSize: normalize(16),
     textAlign: 'center',
-    paddingBottom: 2,
+    paddingBottom: hp(0.5),
   },
   infoText: {
-    fontSize: 14,
-    width: '80%',
+    fontSize: normalize(16),
+    width: wp(80),
     color: colors.black,
-    marginBottom: 8,
+    marginBottom: hp(1.5),
   },
   infoText1: {
-    fontSize: 14,
-    width: '80%',
+    fontSize: normalize(16),
+    width: wp(80),
     color: colors.black,
-    marginBottom: 8,
+    marginBottom: hp(1.5),
   },
 });
 

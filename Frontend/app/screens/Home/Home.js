@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Modal, View, Text, Image, StyleSheet, TouchableOpacity, Pressable, ActivityIndicator, Alert, ScrollView, Animated, FlatList } from 'react-native';
+import { Modal, View, Text, Image, StyleSheet, TouchableOpacity, Pressable, ActivityIndicator, Alert, ScrollView, Animated, FlatList, Dimensions, Platform } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -2099,6 +2099,14 @@ const getMapRegionForLostDogs = (lostDogs) => {
   };
 };
 
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return Math.round(size * scale);
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -2111,43 +2119,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    paddingHorizontal: width * 0.03,
+    marginBottom: height * 0.01,
   },
   titleContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: width * 0.02,
     alignItems: 'center',
   },
   statusIconsRow: {
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: width * 0.03,
   },
-  dogIcon: { width: 30, height: 40, marginLeft: 8 },
-  title: { fontSize: 20, fontWeight: '600', marginLeft: 5 },
+  dogIcon: { 
+    width: normalize(30), 
+    height: normalize(40), 
+    marginLeft: width * 0.02 
+  },
+  title: { 
+    fontSize: normalize(22), // Increased from 20
+    fontWeight: '600', 
+    marginLeft: width * 0.01 
+  },
   statusIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: width * 0.02,
   },
-  statusText: { fontSize: 12, textAlign: 'center' },
+  statusText: { 
+    fontSize: normalize(14), // Increased from 12
+    textAlign: 'center' 
+  },
   mapContainer: {
     position: 'relative',
     width: '100%',
     height: '75%',
-    borderRadius: 10,
+    borderRadius: width * 0.03,
   },
   map: { flex: 1 },
   mapControlsContainer: {
     position: 'absolute',
-    right: 20,
-    bottom: 100,
+    right: width * 0.05,
+    bottom: height * 0.12,
     alignItems: 'center',
   },
   mapButton: {
-    height: 50,
-    width: 50,
-    borderRadius: 25,
+    height: normalize(50),
+    width: normalize(50),
+    borderRadius: normalize(25),
     backgroundColor: colors.yellow,
     justifyContent: 'center',
     alignItems: 'center',
@@ -2157,19 +2176,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
   },
-  address: { fontSize: 18, marginTop: 10, fontWeight: '600' },
+  address: { 
+    fontSize: normalize(20), // Increased from 18
+    marginTop: height * 0.01, 
+    fontWeight: '600' 
+  },
   walkButton: {
     borderColor: colors.black,
     borderWidth: 1,
     backgroundColor: colors.yellow,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 50,
+    paddingVertical: height * 0.02,
+    paddingHorizontal: width * 0.1,
+    borderRadius: width * 0.12,
     alignSelf: 'center',
-    marginHorizontal: 15,
+    marginHorizontal: width * 0.04,
     width: '60%',
   },
-  walkButtonText: { fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 1 },
+  walkButtonText: { 
+    fontSize: normalize(18), // Increased from 16
+    fontWeight: '600', 
+    textAlign: 'center', 
+    marginBottom: height * 0.001 
+  },
 
   modalBackground: {
     flex: 1,
@@ -2181,26 +2209,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: colors.yellow,
-    borderRadius: 10,
-    padding: 5,
-    marginVertical: 10,
-    paddingHorizontal: 10,
+    borderRadius: width * 0.03,
+    padding: width * 0.01,
+    marginVertical: height * 0.01,
+    paddingHorizontal: width * 0.03,
   },
   modalContent: {
     width: '90%',
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: width * 0.04,
+    padding: width * 0.04,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: height * 0.01,
     position: 'relative',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: normalize(22), // Increased from 20
     fontWeight: '600',
     color: colors.black,
     textAlign: 'center',
@@ -2208,60 +2236,60 @@ const styles = StyleSheet.create({
   closeButton: {
     position: 'absolute',
     right: 0,
-    padding: 10,  // Increases tap area
+    padding: width * 0.03,  // Increases tap area
   },
   
   modalBody: {
-    marginTop: 10,
+    marginTop: height * 0.01,
   },
   modalText: {
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
     color: colors.black,
     textAlign: 'center',
   },
   mapPictures: {
-    width: 70,
-    height: 70,
-    borderRadius: 50,
+    width: normalize(70),
+    height: normalize(70),
+    borderRadius: normalize(35),
     borderWidth: 1,
     borderColor: colors.black,
   },
   mapTypeButton: {
     backgroundColor: colors.lightGray,
-    borderRadius: 8,
-    marginVertical: 10,
+    borderRadius: width * 0.02,
+    marginVertical: height * 0.01,
   },
   mapTypeText: {
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
     color: colors.black,
     textAlign: 'center',
     fontWeight: '600',
-    marginBottom: 5,
+    marginBottom: height * 0.01,
   },
   navigationButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    marginBottom: 20,
-    marginTop: 15,
+    marginBottom: height * 0.02,
+    marginTop: height * 0.02,
   },
   arrowButton: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 40,
-    height: 40,
+    width: normalize(40),
+    height: normalize(40),
   },
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 35,
-    height: 35,
+    width: normalize(35),
+    height: normalize(35),
   },
   marker: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: normalize(24),
+    height: normalize(24),
+    borderRadius: normalize(12),
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2287,14 +2315,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   markerText: {
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
   },
   offlineIndicator: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: -normalize(6),
+    right: -normalize(6),
     backgroundColor: colors.grey,
-    borderRadius: 6,
+    borderRadius: normalize(6),
     padding: 1,
     borderWidth: 1,
     borderColor: 'white',
@@ -2304,27 +2332,27 @@ const styles = StyleSheet.create({
   },
   recentlyChangedIndicator: {
     position: 'absolute',
-    top: -20,
+    top: -normalize(20),
     backgroundColor: '#FFC107',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: width * 0.01,
+    paddingVertical: height * 0.002,
+    borderRadius: width * 0.03,
     zIndex: 1,
   },
   recentlyChangedText: {
     color: '#000',
-    fontSize: 10,
+    fontSize: normalize(12), // Increased from 10
     fontWeight: '600',
   },
   safetyIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
+    paddingVertical: height * 0.006,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.05,
     position: 'absolute',
-    top: 210,
+    top: height * 0.26,
     alignSelf: 'center',
     zIndex: 10,
     elevation: 5,
@@ -2338,34 +2366,34 @@ const styles = StyleSheet.create({
   paginationIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 10,
+    marginVertical: height * 0.01,
   },
   paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: normalize(8),
+    height: normalize(8),
+    borderRadius: normalize(4),
     backgroundColor: colors.gray,
-    marginHorizontal: 4,
+    marginHorizontal: width * 0.01,
   },
   activePaginationDot: {
     backgroundColor: colors.yellow,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: normalize(12),
+    height: normalize(12),
+    borderRadius: normalize(6),
   },
   disabledButton: {
     opacity: 0.5,
   },
   topLeftStatusBox: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: height * 0.01,
+    left: width * 0.03,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    paddingVertical: height * 0.007,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.05,
     zIndex: 100,
     elevation: 5,
     shadowColor: '#000',
@@ -2376,38 +2404,37 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.1)',
   },
   statusTextContainer: {
-    marginLeft: 5,
+    marginLeft: width * 0.01,
     flexDirection: 'column',
   },
   animalNameText: {
-    fontSize: 14,
+    fontSize: normalize(18), // Increased from 16
     fontWeight: '600',
-    color: '#333',
+    color: colors.black,
+    marginBottom: 2,
   },
   outOfZoneMarker: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FF5252',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 16,
+    paddingVertical: height * 0.006,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.04,
     position: 'absolute',
-    top: -45,
+    top: -normalize(45),
     alignSelf: 'center',
-    minWidth: 110,
+    minWidth: normalize(110),
     justifyContent: 'center',
     elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
     shadowRadius: 3,
   },
   outOfZoneText: {
-    color: '#FFF',
-    fontSize: 12,
+    color: 'white',
+    fontSize: normalize(14), // Increased from 12
     fontWeight: '600',
-    marginLeft: 4,
-    textAlign: 'center',
   },
   statusBox: {
     position: 'absolute',
@@ -2445,18 +2472,12 @@ const styles = StyleSheet.create({
   statusTextContainer: {
     flex: 1,
   },
-  animalNameText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.black,
-    marginBottom: 2,
-  },
   statusLabelsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   statusLabel: {
-    fontSize: 14,
+    fontSize: normalize(16), // Increased from 14
     fontWeight: '600',
   },
   lostAggressiveTrackingButton: {
@@ -2505,11 +2526,11 @@ const styles = StyleSheet.create({
   trackingButtonTitle: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
   },
   trackingButtonSubtitle: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 12,
+    fontSize: normalize(14), // Increased from 12
     marginTop: 2,
   },
   lostAggressiveMarkerContainer: {
@@ -2552,7 +2573,7 @@ const styles = StyleSheet.create({
   lostAggressiveLabelText: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: 10,
+    fontSize: normalize(12), // Increased from 10
   },
   viewLostAggressiveButton: {
     position: 'absolute',
@@ -2574,7 +2595,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     marginLeft: 10,
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
   },
   lostAggressiveModalContent: {
     width: '90%',
@@ -2616,21 +2637,21 @@ const styles = StyleSheet.create({
   aggressiveBadgeText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: normalize(14), // Increased from 12
     marginLeft: 3,
   },
   lostAggressiveBreed: {
-    fontSize: 14,
+    fontSize: normalize(16), // Increased from 14
     marginBottom: 5,
     color: '#555',
   },
   lostAggressiveTime: {
-    fontSize: 13,
+    fontSize: normalize(15), // Increased from 13
     color: '#777',
     marginBottom: 3,
   },
   lostAggressiveLocation: {
-    fontSize: 13,
+    fontSize: normalize(15), // Increased from 13
     color: '#777',
   },
   noLostDogs: {
@@ -2639,13 +2660,13 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   noLostDogsText: {
-    fontSize: 18,
+    fontSize: normalize(20), // Increased from 18
     fontWeight: '600',
     marginTop: 15,
     textAlign: 'center',
   },
   noLostDogsSubtext: {
-    fontSize: 14,
+    fontSize: normalize(16), // Increased from 14
     color: '#666',
     textAlign: 'center',
     marginTop: 5,
@@ -2670,6 +2691,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     marginLeft: 6,
+    fontSize: normalize(16), // Added explicit size
   },
   dogEmoji: {
     fontSize: 24,
@@ -2689,127 +2711,214 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   detailedInfoContainer: {
-    width: '90%',
-    maxHeight: '85%',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  detailedInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 15,
-    marginBottom: 15,
-  },
-  headerContent: {
-    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: width * 0.04,
+    padding: width * 0.04,
+    marginTop: height * 0.02,
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   detailedInfoTitle: {
-    fontSize: 20,
+    fontSize: normalize(18),
     fontWeight: '600',
-    marginBottom: 5,
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
   },
-  statusBadgeContainer: {
+  detailedInfoText: {
+    fontSize: normalize(14),
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
+  },
+  detailedInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
+    justifyContent: 'space-between',
+    marginBottom: height * 0.01,
   },
-  dangerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ff3131',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginRight: 8,
+  detailedInfoLabel: {
+    fontSize: normalize(14),
+    fontWeight: '500',
+    color: colors.gray,
   },
-  lostBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF9800',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  dangerBadgeText: {
-    color: 'white',
+  detailedInfoValue: {
+    fontSize: normalize(14),
     fontWeight: '600',
-    fontSize: 12,
-    marginLeft: 4,
+    color: colors.black,
   },
-  lostBadgeText: {
-    color: 'white',
+  detailedInfoDivider: {
+    height: 1,
+    backgroundColor: colors.lightGray,
+    marginVertical: height * 0.01,
+  },
+  detailedInfoButton: {
+    backgroundColor: colors.yellow,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    marginTop: height * 0.02,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  detailedInfoButtonText: {
+    color: colors.black,
+    fontSize: normalize(16),
+    textAlign: 'center',
     fontWeight: '600',
-    fontSize: 12,
-    marginLeft: 4,
   },
-  ownerSection: {
-    marginTop: 10,
+  lostDogContainer: {
+    backgroundColor: colors.white,
+    borderRadius: width * 0.04,
+    padding: width * 0.04,
+    marginTop: height * 0.02,
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  lostDogTitle: {
+    fontSize: normalize(18),
+    fontWeight: '600',
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
+  },
+  lostDogText: {
+    fontSize: normalize(14),
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
+  },
+  lostDogImage: {
+    width: '100%',
+    height: height * 0.2,
+    borderRadius: width * 0.03,
+    marginVertical: height * 0.01,
+  },
+  lostDogInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: height * 0.01,
   },
-  ownerLabel: {
+  lostDogLabel: {
+    fontSize: normalize(14),
+    fontWeight: '500',
+    color: colors.gray,
+  },
+  lostDogValue: {
+    fontSize: normalize(14),
     fontWeight: '600',
-    color: '#555',
-    marginRight: 5,
+    color: colors.black,
   },
-  ownerValue: {
-    color: '#333',
+  lostDogDivider: {
+    height: 1,
+    backgroundColor: colors.lightGray,
+    marginVertical: height * 0.01,
   },
-  safetyTipsContainer: {
-    marginTop: 15,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+  lostDogButton: {
+    backgroundColor: colors.yellow,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    marginTop: height * 0.02,
+    width: '100%',
+    alignSelf: 'center',
   },
-  safetyTipsHeader: {
+  lostDogButtonText: {
+    color: colors.black,
+    fontSize: normalize(16),
+    textAlign: 'center',
     fontWeight: '600',
-    fontSize: 14,
-    marginBottom: 8,
-    color: '#333',
   },
-  safetyTip: {
+  aggressiveDogContainer: {
+    backgroundColor: colors.white,
+    borderRadius: width * 0.04,
+    padding: width * 0.04,
+    marginTop: height * 0.02,
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  aggressiveDogTitle: {
+    fontSize: normalize(18),
+    fontWeight: '600',
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
+  },
+  aggressiveDogText: {
+    fontSize: normalize(14),
+    color: colors.black,
+    marginBottom: height * 0.01,
+    textAlign: 'center',
+  },
+  aggressiveDogImage: {
+    width: '100%',
+    height: height * 0.2,
+    borderRadius: width * 0.03,
+    marginVertical: height * 0.01,
+  },
+  aggressiveDogInfoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    marginBottom: height * 0.01,
   },
-  safetyTipText: {
-    marginLeft: 6,
-    color: '#333',
-    fontSize: 13,
+  aggressiveDogLabel: {
+    fontSize: normalize(14),
+    fontWeight: '500',
+    color: colors.gray,
   },
-  actionButtonsContainer: {
-    flexDirection: 'column',
-    marginVertical: 20,
-  },
-  actionButton: {
-    backgroundColor: '#4caf50',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  foundButton: {
-    backgroundColor: '#2196F3',
-  },
-  actionButtonText: {
-    color: 'white',
+  aggressiveDogValue: {
+    fontSize: normalize(14),
     fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
+    color: colors.black,
+  },
+  aggressiveDogDivider: {
+    height: 1,
+    backgroundColor: colors.lightGray,
+    marginVertical: height * 0.01,
+  },
+  aggressiveDogButton: {
+    backgroundColor: colors.yellow,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    marginTop: height * 0.02,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  aggressiveDogButtonText: {
+    color: colors.black,
+    fontSize: normalize(16),
+    textAlign: 'center',
+    fontWeight: '600',
   },
   lostAggressiveSummaryContainer: {
     width: '90%',
@@ -2820,14 +2929,14 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   lostDogSummaryText: {
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
     textAlign: 'center',
     marginVertical: 15,
     color: '#333',
   },
   lostDogCount: {
     fontWeight: '600',
-    fontSize: 18,
+    fontSize: normalize(20), // Increased from 18
     color: '#ff3131',
   },
   lostDogList: {
@@ -2848,7 +2957,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   lostDogName: {
-    fontSize: 16,
+    fontSize: normalize(18), // Increased from 16
     fontWeight: '600',
     color: '#333',
   },
@@ -2860,16 +2969,16 @@ const styles = StyleSheet.create({
   },
   lostDogBadgeText: {
     color: 'white',
-    fontSize: 10,
+    fontSize: normalize(12), // Increased from 10
     fontWeight: '600',
   },
   lostDogBreed: {
-    fontSize: 14,
+    fontSize: normalize(16), // Increased from 14
     color: '#666',
     marginBottom: 5,
   },
   lostDogLastSeen: {
-    fontSize: 13,
+    fontSize: normalize(15), // Increased from 13
     color: '#888',
     marginBottom: 10,
   },
@@ -2879,7 +2988,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   viewDetailsText: {
-    fontSize: 12,
+    fontSize: normalize(14), // Increased from 12
     color: '#4CAF50',
     marginLeft: 5,
     fontWeight: '500',
@@ -2897,6 +3006,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     marginLeft: 8,
+    fontSize: normalize(16), // Added explicit size
   },
   noLostDogsEmoji: {
     fontSize: 40,
@@ -2987,7 +3097,7 @@ const styles = StyleSheet.create({
   trackCountText: {
     color: 'white',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: normalize(14), // Increased from 12
   },
   detailedInfoContent: {
     flex: 1,
@@ -3074,17 +3184,19 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   closeModalButton: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
     backgroundColor: colors.black,
-    borderRadius: 20,
-    elevation: 2,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    marginTop: height * 0.02,
+    width: '50%',
+    alignSelf: 'center',
   },
   closeModalButtonText: {
     color: colors.yellow,
+    fontSize: normalize(16),
+    textAlign: 'center',
     fontWeight: '600',
-    fontSize: 16,
   },
   // Additional styles for enhanced lost dog details
   lostTimeContainer: {

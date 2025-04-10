@@ -8,12 +8,21 @@ import {
   ScrollView,
   Modal,
   Alert,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import colors from '../../constants/colors';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
+
+const { width, height } = Dimensions.get('window');
+
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return size * scale;
+};
 
 const SettingsScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -189,43 +198,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.lightYellow,
+    paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
   },
   scrollContainer: {
-    padding: 20,
+    padding: width * 0.05,
   },
   header: {
     position: 'absolute',
-    top: 20,
-    left: 10,
+    top: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    left: width * 0.03,
     zIndex: 1,
   },
   title: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: height * 0.015,
   },
   section: {
     backgroundColor: colors.yellow,
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    padding: width * 0.04,
+    borderRadius: width * 0.025,
+    marginBottom: height * 0.015,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: height * 0.015,
   },
   input: {
     backgroundColor: 'white',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
+    padding: width * 0.025,
+    borderRadius: width * 0.0125,
+    marginBottom: height * 0.015,
     width: '100%',
-    marginTop: 5,
+    marginTop: height * 0.01,
+    fontSize: normalize(16),
   },
- 
+  label: {
+    fontSize: normalize(16),
+    marginBottom: height * 0.005,
+  },
   passwordContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -233,18 +247,18 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: height * 0.02,
   },
   button: {
     backgroundColor: colors.black,
-    paddingVertical: 10,
-    borderRadius: 50,
-    width: '50%',
+    paddingVertical: height * 0.015,
+    borderRadius: width * 0.12,
+    width: width * 0.5,
     alignItems: 'center',
   },
   buttonText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
   },
   inputWithLabelContainer: {
@@ -255,25 +269,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkbox: {
-    width: 35,
-    height: 35,
+    width: width * 0.09,
+    height: width * 0.09,
     borderWidth: 2,
     borderColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 5,
-    marginTop: 5, // Consistent margin
-    marginBottom: 15,
+    borderRadius: width * 0.0125,
+    marginTop: height * 0.01,
+    marginBottom: height * 0.02,
   },
   checkboxInner: {
-    width: 15,
-    height: 15,
+    width: width * 0.04,
+    height: width * 0.04,
     backgroundColor: colors.white,
   },
   showText: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.black,
-    marginBottom: 5, // Consistent margin
+    marginBottom: height * 0.01,
   },
   modalContainer: {
     flex: 1,
@@ -283,13 +297,13 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    padding: 20,
-    borderRadius: 10,
+    padding: width * 0.05,
+    borderRadius: width * 0.025,
     width: '80%',
   },
   modalText: {
-    fontSize: 18,
-    marginBottom: 20,
+    fontSize: normalize(18),
+    marginBottom: height * 0.025,
     textAlign: 'center',
   },
   modalButtonContainer: {
@@ -298,15 +312,18 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     backgroundColor: colors.black,
-    paddingVertical: 10,
-    borderRadius: 50,
+    paddingVertical: height * 0.015,
+    borderRadius: width * 0.12,
     width: '40%',
     alignItems: 'center',
   },
   modalButtonText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 

@@ -9,11 +9,22 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '../../constants/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import enviroments from '../../constants/enviroments';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return Math.round(size * scale);
+};
 
 const PetSize = () => {
   const [height, setHeight] = useState('');
@@ -144,48 +155,59 @@ const PetSize = () => {
     }
   };
   
-  
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('..')}>
-            <Text style={styles.navButtonText}>Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton} onPress={handleNext}>
-            <Text style={styles.navButtonText}>Next</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.title}>We Love All Shapes And Sizes!</Text>
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>How tall is your pet?</Text>
-          <TextInput
-            style={styles.textInput}
-            value={height}
-            onChangeText={setHeight}
-            placeholder="Enter height"
-            keyboardType="numeric"
-          />
-        </View>
-        <View style={styles.inputWrapper}>
-          <Text style={styles.label}>How much does your pet weigh?</Text>
-          <TextInput
-            style={styles.textInput}
-            value={weight}
-            onChangeText={setWeight}
-            placeholder="Enter weight"
-            keyboardType="numeric"
-          />
-        </View>
-        <Image
-          source={require('../../../assets/images/dog_pics.png')}
-          style={styles.image}
-        />
-      </ScrollView>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.button} onPress={() => router.push('..')}>
+              <Text style={styles.buttonText}>Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleNext}>
+              <Text style={styles.buttonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>We Love All Shapes And Sizes!</Text>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>How tall is your pet?</Text>
+            <TextInput
+              style={styles.input}
+              value={height}
+              onChangeText={setHeight}
+              placeholder="Enter height"
+              placeholderTextColor={colors.gray}
+              keyboardType="numeric"
+            />
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>How much does your pet weigh?</Text>
+            <TextInput
+              style={styles.input}
+              value={weight}
+              onChangeText={setWeight}
+              placeholder="Enter weight"
+              placeholderTextColor={colors.gray}
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.imageContainer}>
+            <Image
+              source={require('../../../assets/images/dog_pics.png')}
+              style={styles.image}
+            />
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 };
@@ -196,60 +218,84 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
   },
   scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
-    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? height * 0.05 : height * 0.04,
+    paddingBottom: height * 0.05,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '90%',
-    position: 'absolute',
-    top: 40,
+    width: '75%',
+    marginBottom: height * 0.06,
+    marginTop: height * 0.02,
   },
-  navButton: {
+  button: {
     backgroundColor: colors.black,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 40,
-    width: '30%',
+    paddingVertical: height * 0.008,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    width: width * 0.3,
+    alignItems: 'center',
   },
-  navButtonText: {
+  buttonText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     textAlign: 'center',
-    paddingBottom: 2,
+    paddingBottom: height * 0.005,
+  },
+  textContainer: {
+    alignItems: 'center',
+    marginTop: height * 0.05,
+    marginBottom: height * 0.04,
   },
   title: {
-    fontSize: 24,
-    marginTop: 80,
-    marginBottom: 15,
-    color: colors.black,
+    fontSize: normalize(28),
     textAlign: 'center',
+    color: colors.black,
+    marginBottom: height * 0.03,
+    fontWeight: '500',
   },
-  inputWrapper: {
-    width: '90%',
-    marginBottom: 15,
+  inputContainer: {
+    width: '100%',
+    marginBottom: height * 0.05,
+    paddingHorizontal: width * 0.06,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: normalize(16),
     color: colors.black,
-    marginBottom: 8,
+    marginBottom: height * 0.02,
     textAlign: 'center',
-    marginVertical: 8,
+    fontWeight: '500',
   },
-  textInput: {
+  input: {
+    height: height * 0.06,
+    borderColor: colors.white,
+    borderWidth: 1,
+    paddingLeft: width * 0.03,
     backgroundColor: colors.white,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.black,
+    fontSize: normalize(16),
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: height * 0.05,
   },
   image: {
-    width: 200,
-    height: 260,
-    marginBottom: 20,
+    width: Math.min(width * 0.7, 200),
+    height: Math.min(height * 0.3, 260),
+    resizeMode: 'contain',
   },
 });
 

@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Modal, Dimensions } from 'react-native';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import colors from '../../constants/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import environments from '../../constants/environments';
+
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -1065,14 +1075,13 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.yellow,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingVertical: height * 0.02,
+    paddingHorizontal: width * 0.05,
+    paddingTop: Platform.OS === 'ios' ? height * 0.04 : height * 0.02,
     alignItems: 'center',
-  
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '600',
     color: colors.black,
   },
@@ -1083,36 +1092,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   calendarHeaderText: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: 'bold',
     color: colors.darkGrey,
   },
   eventsContainer: {
     flex: 1,
-    padding: 15,
+    padding: width * 0.04,
   },
   selectedDateHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   selectedDateText: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: 'bold',
     color: colors.darkGrey,
   },
   addButton: {
-    padding: 5,
+    padding: width * 0.012,
   },
   eventsList: {
     flex: 1,
   },
   eventCard: {
     backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+    borderRadius: width * 0.025,
+    padding: width * 0.04,
+    marginBottom: height * 0.012,
     borderLeftWidth: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1136,39 +1145,38 @@ const styles = StyleSheet.create({
   eventCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: height * 0.006,
   },
   eventTime: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.grey,
-    marginLeft: 5,
-    marginRight: 5,
+    marginLeft: width * 0.012,
+    marginRight: width * 0.012,
   },
   eventTitle: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '500',
     color: '#000',
   },
   categoryBadge: {
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: width * 0.02,
+    paddingVertical: height * 0.004,
+    borderRadius: width * 0.025,
     alignSelf: 'flex-start',
-    marginTop: 8,
-
+    marginTop: height * 0.01,
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.darkGrey,
   },
   statusBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    top: height * 0.012,
+    right: width * 0.025,
+    paddingHorizontal: width * 0.02,
+    paddingVertical: height * 0.004,
+    borderRadius: width * 0.025,
   },
   takenBadge: {
     backgroundColor: '#E8F5E9',
@@ -1177,7 +1185,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEE',
   },
   statusText: {
-    fontSize: 12,
+    fontSize: normalize(12),
   },
   takenStatusText: {
     color: '#4CAF50',
@@ -1188,25 +1196,25 @@ const styles = StyleSheet.create({
   noEventsText: {
     textAlign: 'center',
     color: colors.grey,
-    marginTop: 20,
+    marginTop: height * 0.025,
   },
   emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: height * 0.05,
   },
   emptyStateText: {
-    marginTop: 15,
+    marginTop: height * 0.02,
     color: colors.darkGrey,
-    fontSize: 16,
+    fontSize: normalize(16),
     textAlign: 'center',
   },
   emptyStateButton: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    marginTop: height * 0.025,
+    paddingVertical: height * 0.012,
+    paddingHorizontal: width * 0.05,
     backgroundColor: colors.yellow,
-    borderRadius: 20,
+    borderRadius: width * 0.05,
     borderWidth: 1,
     borderColor: colors.black,
   },
@@ -1219,57 +1227,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   formContentContainer: {
-    padding: 15,
+    padding: width * 0.04,
   },
   formTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: height * 0.025,
     color: '#000',
     textAlign: 'center',
   },
   formLabel: {
-    fontSize: 16,
-    marginBottom: 10,
+    fontSize: normalize(16),
+    marginBottom: height * 0.012,
     color: colors.darkGrey,
     textAlign: 'center',
-
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: height * 0.025,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: height * 0.01,
     color: colors.darkGrey,
   },
   textInput: {
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
+    padding: width * 0.03,
+    borderRadius: width * 0.02,
+    fontSize: normalize(16),
     color: '#000',
     backgroundColor: '#fff',
   },
   textArea: {
-    height: 100,
+    height: height * 0.12,
     textAlignVertical: 'top',
   },
   typeButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8, // Adds spacing between buttons for better layout
+    gap: width * 0.02,
   },
   typeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.04,
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    borderRadius: 10,
+    borderRadius: width * 0.025,
     width: '48%',
     justifyContent: 'center',
     backgroundColor: '#fff',
@@ -1277,36 +1284,35 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3, // Adds subtle shadow on Android for depth
+    elevation: 3,
   },
   activeButton: {
     backgroundColor: colors.yellow,
     borderColor: colors.black,
   },
   typeButtonText: {
-    fontSize: 16,
-    marginLeft: 8,
+    fontSize: normalize(16),
+    marginLeft: width * 0.02,
     color: colors.darkGrey,
   },
   typeButtonTextActive: {
     color: colors.black,
     fontWeight: 'bold',
   },
-  
   categoriesContainer: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    marginRight: 10,
+    padding: width * 0.025,
+    marginRight: width * 0.025,
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    borderRadius: 8,
+    borderRadius: width * 0.02,
     backgroundColor: '#fff',
-    minWidth: 100,
+    minWidth: width * 0.25,
     justifyContent: 'center',
   },
   categoryButtonActive: {
@@ -1314,8 +1320,8 @@ const styles = StyleSheet.create({
     borderColor: colors.black,
   },
   categoryButtonText: {
-    fontSize: 14,
-    marginLeft: 5,
+    fontSize: normalize(14),
+    marginLeft: width * 0.012,
     color: '#000',
     textAlign: 'center',
   },
@@ -1325,12 +1331,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    padding: 12,
-    borderRadius: 8,
+    padding: width * 0.03,
+    borderRadius: width * 0.02,
     backgroundColor: '#fff',
   },
   timePickerButtonText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: '#000',
   },
   repeatButtons: {
@@ -1338,10 +1344,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   repeatButton: {
-    padding: 7,
+    padding: width * 0.018,
     borderWidth: 1,
     borderColor: colors.lightGrey,
-    borderRadius: 8,
+    borderRadius: width * 0.02,
     width: '23%',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -1351,7 +1357,7 @@ const styles = StyleSheet.create({
     borderColor: colors.yellow,
   },
   repeatButtonText: {
-    fontSize: 13,
+    fontSize: normalize(13),
     color: colors.darkGrey,
   },
   repeatButtonTextActive: {
@@ -1360,94 +1366,93 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: colors.yellow,
-    padding: 15,
-    borderRadius: 15,
+    padding: height * 0.018,
+    borderRadius: width * 0.038,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: height * 0.025,
     borderWidth: 1,
     borderColor: colors.black,
   },
   saveButtonText: {
     color: colors.black,
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: 'bold',
   },
   cancelButton: {
     backgroundColor: colors.black,
-    padding: 15,
-    borderRadius: 15,
+    padding: height * 0.018,
+    borderRadius: width * 0.038,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: height * 0.025,
     borderWidth: 1,
     borderColor: colors.yellow
   },
   cancelButtonText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: normalize(16),
   },
   detailsContainer: {
     flex: 1,
     backgroundColor: colors.yellow,
     height: '100%',
-    paddingBottom: 50,
+    paddingBottom: height * 0.06,
   },
   detailsContentContainer: {
-    padding: 20,
-    paddingBottom: 50,
+    padding: width * 0.05,
+    paddingBottom: height * 0.06,
   },
   detailsHeader: {
-    marginBottom: 20,
+    marginBottom: height * 0.025,
   },
   detailsTitle: {
-    fontSize: 22,
+    fontSize: normalize(22),
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: height * 0.006,
     color: '#000',
     textAlign: 'center',  
   },
   detailsTypeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',  // Centers the content horizontally
-    marginBottom: 5,
+    justifyContent: 'center',
+    marginBottom: height * 0.006,
   },
   detailsType: {
-    fontSize: 16,
-    marginLeft: 5,
-    textAlign: 'center',  // Center the text inside the container
+    fontSize: normalize(16),
+    marginLeft: width * 0.012,
+    textAlign: 'center',
   },
-  
   detailsCategoryContainer: {
-    marginTop: 5,
+    marginTop: height * 0.006,
   },
   detailsCategory: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.darkGrey,
     textAlign: 'center',  
   },
   detailsInfo: {
-    marginBottom: 30,
+    marginBottom: height * 0.038,
     backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: width * 0.025,
+    padding: width * 0.038,
   },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: height * 0.018,
   },
   detailsText: {
-    fontSize: 16,
-    marginLeft: 10,
+    fontSize: normalize(16),
+    marginLeft: width * 0.025,
     color: '#000',
   },
   detailsStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    marginTop: height * 0.012,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.02,
     alignSelf: 'flex-start',
   },
   takenStatusContainer: {
@@ -1457,25 +1462,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEE',
   },
   detailsStatusText: {
-    marginLeft: 5,
+    marginLeft: width * 0.012,
     fontWeight: '500',
   },
   actionsContainer: {
     marginTop: 'auto',
-    paddingBottom: 30,
+    paddingBottom: height * 0.038,
   },
   statusActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
+    marginBottom: height * 0.018,
   },
   statusButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.038,
+    borderRadius: width * 0.025,
     flex: 0.48,
   },
   takenButton: {
@@ -1486,7 +1491,7 @@ const styles = StyleSheet.create({
   },
   statusButtonText: {
     color: 'white',
-    marginLeft: 5,
+    marginLeft: width * 0.012,
     fontWeight: '500',
   },
   deleteButton: {
@@ -1494,27 +1499,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
+    padding: height * 0.018,
+    borderRadius: width * 0.025,
+    marginBottom: height * 0.018,
   },
   deleteButtonText: {
-    color: colors.white,
-    marginLeft: 5,
-    fontWeight: '500',
+    color: 'white',
+    fontSize: normalize(16),
+    fontWeight: 'bold',
   },
-  backButton: {
-    backgroundColor: colors.black,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 40,
-    width: '30%',
+  timePickerContainer: {
+    backgroundColor: 'white',
+    borderRadius: width * 0.05,
+    padding: width * 0.05,
+    width: '80%',
+    alignSelf: 'center',
   },
-  backButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    textAlign: 'center',
-    paddingBottom: 2,
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: height * 0.02,
+  },
+  timePickerTitle: {
+    fontSize: normalize(18),
+    fontWeight: 'bold',
+  },
+  timePickerCloseButton: {
+    padding: width * 0.02,
+  },
+  timePickerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: height * 0.02,
+  },
+  timePickerColumn: {
+    alignItems: 'center',
+  },
+  timePickerLabel: {
+    fontSize: normalize(16),
+    marginBottom: height * 0.01,
+  },
+  timePickerValue: {
+    fontSize: normalize(24),
+    fontWeight: 'bold',
+  },
+  timePickerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  timePickerActionButton: {
+    padding: width * 0.03,
+    borderRadius: width * 0.02,
+    width: '45%',
+    alignItems: 'center',
+  },
+  timePickerCancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  timePickerConfirmButton: {
+    backgroundColor: colors.yellow,
+  },
+  timePickerButtonText: {
+    fontSize: normalize(16),
+    fontWeight: 'bold',
+  },
+  timePickerCancelButtonText: {
+    color: colors.darkGrey,
+  },
+  timePickerConfirmButtonText: {
+    color: colors.black,
   },
   modalOverlay: {
     flex: 1,
@@ -1522,24 +1576,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timePickerContainer: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    alignItems: 'center',
-  },
-  timePickerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#000',
-  },
   timePickerControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: height * 0.02,
   },
   timeColumn: {
     alignItems: 'center',
@@ -1549,13 +1590,13 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   timeValue: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: 'bold',
     color: '#000',
     marginVertical: 5,
   },
   timeSeparator: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: 'bold',
     color: '#000',
     marginHorizontal: 10,
@@ -1570,14 +1611,14 @@ const styles = StyleSheet.create({
   },
   timePickerCancelText: {
     color: colors.grey,
-    fontSize: 16,
+    fontSize: normalize(16),
   },
   timePickerConfirm: {
     padding: 10,
   },
   timePickerConfirmText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: 'bold',
   },
   activeText: {
@@ -1595,6 +1636,19 @@ const styles = StyleSheet.create({
   vetCategoryActive: {
     backgroundColor: colors.yellow,
     borderColor: colors.yellow,
+  },
+  backButton: {
+    backgroundColor: colors.black,
+    paddingVertical: height * 0.008,
+    paddingHorizontal: width * 0.04,
+    borderRadius: height * 0.04,
+    width: '30%',
+  },
+  backButtonText: {
+    color: colors.white,
+    fontSize: normalize(16),
+    textAlign: 'center',
+    paddingBottom: 2,
   },
 });
 export default Calendar; 

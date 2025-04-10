@@ -1,10 +1,27 @@
 import React, { useState } from 'react';
-import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ScrollView } from 'react-native';
+import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import enviroments from '../../constants/enviroments'; // Make sure you have your API URL in this file
 import colors from '../../constants/colors';
 import TMT from '../../../assets/images/tmt250.png';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return Math.round(size * scale);
+};
+
+// Responsive dimensions
+const wp = (percentage) => {
+  return (width * percentage) / 100;
+};
+
+const hp = (percentage) => {
+  return (height * percentage) / 100;
+};
 
 const AddTracker = () => {
   const [trackerID, setTrackerID] = useState('352625692119264');
@@ -79,8 +96,7 @@ const AddTracker = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust this value as needed
     >
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <View style={styles.inner}>
-          {/* Back and Next Buttons */}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.button}
@@ -93,13 +109,11 @@ const AddTracker = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Title and Label */}
           <View style={styles.textContainer}>
             <Text style={styles.title}>Enter Tracker ID</Text>
             <Text style={styles.label}>You can find the Tracker ID on the back of your GPS tracker.</Text>
           </View>
 
-          {/* TextInput */}
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -110,7 +124,6 @@ const AddTracker = () => {
             />
           </View>
 
-          {/* Image at the Bottom */}
           <View style={styles.imageContainer}>
             <Image
               source={TMT}
@@ -118,7 +131,7 @@ const AddTracker = () => {
               testID="tmt250"
             />
           </View>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
@@ -128,67 +141,87 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
-    paddingHorizontal: 20,
   },
-  inner: {
-    flex: 1,
-    justifyContent: 'space-between', // Distribute space between elements
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? height * 0.05 : height * 0.04,
+    paddingBottom: height * 0.05,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 40,
+    width: '75%',
+    marginBottom: height * 0.06,
+    marginTop: height * 0.02,
   },
   button: {
     backgroundColor: colors.black,
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    borderRadius: 40,
-    width: '30%',
+    paddingVertical: height * 0.008,
+    paddingHorizontal: width * 0.05,
+    borderRadius: width * 0.06,
+    width: width * 0.3,
+    alignItems: 'center',
   },
   buttonText: {
     color: colors.yellow,
-    fontSize: 16,
+    fontSize: normalize(16),
     textAlign: 'center',
-    paddingBottom: 2,
+    paddingBottom: height * 0.005,
   },
   textContainer: {
     alignItems: 'center',
-    marginTop: 20, // Adjust this value to position the text
+    marginTop: height * 0.05,
+    marginBottom: height * 0.04,
+    marginHorizontal: width * 0.05,
   },
   title: {
-    fontSize: 24,
+    fontSize: normalize(28),
     textAlign: 'center',
     color: colors.black,
-    marginBottom: 8,
+    marginBottom: height * 0.03,
+    fontWeight: '500',
   },
   label: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
-    marginBottom: 5,
+    marginBottom: height * 0.02,
     textAlign: 'center',
     fontWeight: '500',
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: height * 0.05,
+    paddingHorizontal: width * 0.06,
   },
   input: {
-    height: 45,
+    height: height * 0.06,
     borderColor: colors.white,
     borderWidth: 1,
-    paddingLeft: 8,
+    paddingLeft: width * 0.03,
     backgroundColor: colors.white,
-    borderRadius: 8,
+    borderRadius: 10,
+    fontSize: normalize(16),
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   imageContainer: {
     alignItems: 'center',
-    marginBottom: 20, // Adjust this value to position the image
+    marginBottom: height * 0.05,
+    marginTop: height * 0.02,
   },
   imageTMT: {
-    width: 240,
-    height: 200,
+    width: Math.min(width * 0.7, 250),
+    height: Math.min(height * 0.25, 210),
     resizeMode: 'contain',
   },
 });

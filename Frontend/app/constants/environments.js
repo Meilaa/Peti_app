@@ -1,7 +1,7 @@
 // API and environment configuration
 const environments = {
   // Try these API URLs in order
-  API_BASE_URL: 'https://aa37-2a09-bac5-488e-5cd-00-94-2f.ngrok-free.app', // Your actual IP
+  API_BASE_URL: 'https://angel-soonest-lead-combination.trycloudflare.com', // Your actual IP
   
   // Fallback URLs
   API_FALLBACK_URLS: [

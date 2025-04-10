@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, Alert, Switch, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '../../constants/colors';
 import DogImage from '../../../assets/images/dog_pics.png';
@@ -10,6 +10,16 @@ import environments from '../../constants/enviroments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import { Picker } from '@react-native-picker/picker';
+
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 const DogProfile = () => {
   const router = useRouter();
@@ -1156,32 +1166,32 @@ const DogProfile = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    paddingTop: 40,
+    padding: width * 0.04,
+    paddingTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.06,
     backgroundColor: colors.white,
   },
-  scrollViewContent: {
+  scrollViewContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     width: '100%',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 13,
+    marginBottom: height * 0.02,
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '80%',
     position: 'relative',
-    paddingHorizontal: 20,
+    paddingHorizontal: width * 0.05,
     alignItems: 'center',
   },
   imageContainer: {
     alignItems: 'center',
-    width: 100,
-    height: 100,
-    borderRadius: 70,
+    width: width * 0.25,
+    height: width * 0.25,
+    borderRadius: width * 0.125,
     backgroundColor: colors.black,
   },
   profileImage: {
@@ -1191,23 +1201,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: height * 0.01,
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',  // Corrected typo here
-    paddingHorizontal: 20,
-    marginVertical: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: width * 0.05,
+    marginVertical: height * 0.01,
   },
-  
   button: {
     backgroundColor: colors.yellow,
-    padding: 10,
-    borderRadius: 50,
-    width: 40,
-    height: 40,
+    padding: width * 0.025,
+    borderRadius: width * 0.125,
+    width: width * 0.15,
+    height: width * 0.15,
     justifyContent: 'center',
     alignItems: 'center',
     borderColor: colors.black,
@@ -1218,24 +1227,24 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.black,
-    marginTop: 5,
+    marginTop: height * 0.01,
     fontWeight: '600',
     textAlign: 'center',
   },
   profileDetails: {
     backgroundColor: colors.yellow,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: width * 0.025,
+    padding: width * 0.04,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: height * 0.01,
     borderColor: colors.grey,
     borderBottomWidth: 1,
   },
   label: {
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   value: {
     color: colors.white,
@@ -1250,59 +1259,56 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: colors.white,
     width: '100%',
-    maxWidth: 250,
-    padding: 24,
-    borderRadius: 12,
-    alignItems: 'center',     // Centers everything horizontally
+    maxWidth: width * 0.6,
+    padding: width * 0.06,
+    borderRadius: width * 0.03,
+    alignItems: 'center',
   },
-
   modalTitle: {
-    fontSize: 17, // Reduced font size
+    fontSize: normalize(17),
     fontWeight: 'bold',
     textAlign: 'center',
-    paddingBottom: 15,
-    marginTop: 10, // Move title below close button
+    paddingBottom: height * 0.02,
+    marginTop: height * 0.01,
   },
   input: {
-    height: 45,
+    height: height * 0.06,
     borderColor: colors.grey,
     borderWidth: 1,
-    borderRadius: 5,
-    paddingLeft: 10,
-    paddingRight: 10,
-    width: 200,
-    fontSize: 14,
-    marginBottom: 15,  // ✅ This adds spacing between all inputs
-},
-
+    borderRadius: width * 0.01,
+    paddingLeft: width * 0.025,
+    paddingRight: width * 0.025,
+    width: width * 0.5,
+    fontSize: normalize(14),
+    marginBottom: height * 0.02,
+  },
   picker: {
-    height: 45,   // Same height as TextInput
-    fontSize: 14,  // Make text size smaller
-    width: 200,    // Match input width
-    color: colors.black, // Optional to match text color
-},
-
+    height: height * 0.06,
+    fontSize: normalize(14),
+    width: width * 0.5,
+    color: colors.black,
+  },
   inputContainer: {
-    marginBottom: 12,
+    marginBottom: height * 0.015,
     borderColor: colors.grey,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: width * 0.01,
   },
   pickerItem: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.grey,
   },
   modalButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: height * 0.025,
   },
   modalButton: {
     flex: 1,
     backgroundColor: colors.yellow,
-    padding: 12,
-    borderRadius: 10,
-    marginHorizontal: 5,
+    padding: height * 0.015,
+    borderRadius: width * 0.025,
+    marginHorizontal: width * 0.01,
     alignItems: 'center',
     borderColor: colors.black,
     borderWidth: 1,
@@ -1315,14 +1321,14 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: colors.black,
     fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 2,
+    fontSize: normalize(16),
+    marginBottom: height * 0.005,
   },
   modalButtonText1: {
     color: colors.white,
     fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 2,
+    fontSize: normalize(16),
+    marginBottom: height * 0.005,
   },
   loadingContainer: {
     flex: 1,
@@ -1331,120 +1337,104 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   temperamentIndicator: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-    marginRight: 5,
+    width: width * 0.04,
+    height: width * 0.04,
+    borderRadius: width * 0.02,
+    marginRight: width * 0.01,
   },
   aggressiveIndicator: {
-    backgroundColor: '#FF5252', // Red for aggressive
+    backgroundColor: '#FF5252',
   },
   friendlyIndicator: {
-    backgroundColor: '#4CAF50', // Green for friendly
+    backgroundColor: '#4CAF50',
   },
   neutralIndicator: {
-    backgroundColor: colors.yellow, // Yellow for neutral
+    backgroundColor: colors.yellow,
   },
   temperamentOptionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',  
-    marginVertical: 10,
-    flexWrap: 'nowrap',  // Ensures items stay in one row
-    gap: 2,
-    width: '100%',  // Ensure all elements fit in the container width
+    justifyContent: 'space-between',
+    marginVertical: height * 0.01,
+    flexWrap: 'nowrap',
+    gap: width * 0.005,
+    width: '100%',
   },
-
   temperamentOption: {
     alignItems: 'center',
-    padding: 6,  // Reduced padding to fit options
-    borderRadius: 10,
+    padding: width * 0.015,
+    borderRadius: width * 0.025,
     borderWidth: 2,
     borderColor: '#eee',
     backgroundColor: '#f9f9f9',
-    width: '32%',  // Adjust width to fit all options in one row
-    minWidth: 60,  // Ensure options are small enough to fit in one row
-    marginBottom: 5,
+    width: '32%',
+    minWidth: width * 0.15,
+    marginBottom: height * 0.01,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
   },
-
   temperamentText: {
-    marginTop: 5,
+    marginTop: height * 0.01,
     fontWeight: '600',
     color: '#333',
-    fontSize: 8, // Reduced font size for temperament text
+    fontSize: normalize(8),
     textAlign: 'center',
   },
-
   selectedTemperamentText: {
     color: colors.white,
-    fontSize: 8, // Ensure selected temperament text is smaller
+    fontSize: normalize(8),
   },
-
-  // Ensure modal title is below close button and still centered
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 0, // Remove unnecessary space
+    marginBottom: 0,
   },
-  
   selectedTemperament: {
     backgroundColor: colors.yellow,
     borderColor: colors.yellow,
   },
-  temperamentText: {
-    marginTop: 5,
-    fontWeight: '600',
-    color: '#333',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  selectedTemperamentText: {
-    color: colors.white,
-  },
   temperamentLabel: {
-    fontSize: 15,
+    fontSize: normalize(15),
     fontWeight: '600',
-    marginVertical: 12,
+    marginVertical: height * 0.015,
     color: colors.black,
   },
   modalContent: {
     backgroundColor: colors.white,
-    padding: 20,
-    borderRadius: 10,
+    padding: width * 0.05,
+    borderRadius: width * 0.025,
     width: '90%',
-    maxWidth: 350,
+    maxWidth: width * 0.8,
     alignSelf: 'center',
   },
   saveButton: {
     backgroundColor: colors.yellow,
-    padding: 14,
-    borderRadius: 10,
+    padding: height * 0.017,
+    borderRadius: width * 0.025,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: height * 0.012,
   },
   saveButtonText: {
     color: colors.black,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: normalize(16),
   },
   temperamentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginTop: 6,
+    paddingVertical: height * 0.008,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.04,
+    marginTop: height * 0.008,
   },
   temperamentBadgeText: {
-    fontSize: 14,
+    fontSize: normalize(14),
     fontWeight: 'bold',
-    marginLeft: 6,
+    marginLeft: width * 0.015,
   },
   aggressiveButton: {
     backgroundColor: colors.aggressive,
@@ -1484,27 +1474,22 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   statusMessage: {
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignItems: 'center'
+    padding: width * 0.025,
+    borderRadius: width * 0.01,
+    marginTop: height * 0.012,
+    alignItems: 'center',
   },
   statusMessageText: {
     color: 'white',
-    fontWeight: 'bold'
-  },
-  recentlyChangedTemperament: {
-    borderWidth: 2,
-    borderColor: '#FFC107',
-    transform: [{ scale: 1.05 }]
+    fontWeight: 'bold',
   },
   lostDogControlButton: {
     position: 'absolute',
-    right: 20,
-    bottom: 100,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    right: width * 0.05,
+    bottom: height * 0.12,
+    width: width * 0.12,
+    height: width * 0.12,
+    borderRadius: width * 0.06,
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1520,12 +1505,12 @@ const styles = StyleSheet.create({
   },
   lostControlsPanel: {
     position: 'absolute',
-    right: 20,
-    bottom: 160,
-    width: 250,
+    right: width * 0.05,
+    bottom: height * 0.2,
+    width: width * 0.6,
     backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: width * 0.02,
+    padding: width * 0.04,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1537,37 +1522,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: height * 0.02,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    paddingBottom: 10,
+    paddingBottom: height * 0.01,
   },
   lostControlsTitle: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: 'bold',
     color: '#333',
   },
   lostControlsClose: {
-    padding: 5,
+    padding: width * 0.01,
   },
   lostStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: height * 0.02,
   },
   lostStatusLabel: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: '#333',
   },
   lostStatusIndicator: {
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: height * 0.02,
   },
   statusBadge: {
-    paddingVertical: 5,
-    paddingHorizontal: 15,
-    borderRadius: 15,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.04,
+    borderRadius: width * 0.04,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1580,20 +1565,20 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: normalize(12),
   },
   aggressiveWarning: {
     flexDirection: 'row',
     backgroundColor: '#fff0f0',
-    padding: 10,
-    borderRadius: 8,
+    padding: width * 0.02,
+    borderRadius: width * 0.02,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: height * 0.01,
   },
   aggressiveWarningText: {
     color: '#d32f2f',
-    fontSize: 12,
-    marginLeft: 5,
+    fontSize: normalize(12),
+    marginLeft: width * 0.01,
     flex: 1,
     flexWrap: 'wrap',
   },
@@ -1601,7 +1586,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lostTimestampText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: '#666',
     fontStyle: 'italic',
   },
@@ -1617,16 +1602,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   lostDogEmoji: {
-    fontSize: 18,
+    fontSize: normalize(18),
     color: colors.white,
   },
   lostDogActionButton: {
     backgroundColor: '#f8f8f8',
-    padding: 12,
-    borderRadius: 15,
+    padding: width * 0.03,
+    borderRadius: width * 0.04,
     alignItems: 'center',
-    marginVertical: 10,
-    marginHorizontal: 30,
+    marginVertical: height * 0.01,
+    marginHorizontal: width * 0.08,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1639,7 +1624,7 @@ const styles = StyleSheet.create({
   },
   lostDogButtonText: {
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: normalize(14),
     textAlign: 'center',
   },
 });

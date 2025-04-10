@@ -1,9 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Platform } from 'react-native';
 import colors from '../../constants/colors'; 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 const FeaturesGuide = () => {
     const router = useRouter();
@@ -21,7 +30,7 @@ const handleBack = () => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleBack}>
-                <Ionicons name="chevron-back" size={24} color={colors.white} />
+                <Ionicons name="chevron-back" size={normalize(24)} color={colors.white} />
                 </TouchableOpacity>
             </View>
             <Text style={styles.header2}>App Features Guide</Text>
@@ -42,31 +51,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.yellow,
-        paddingTop: 30,
-        paddingHorizontal   : 15,
+        paddingTop: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
+        paddingHorizontal: width * 0.05,
     },
     header: {
         position: 'absolute',
-        top: 35,
-        left: 10,
+        top: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
+        left: width * 0.04,
         zIndex: 1,
-      },
+    },
     header2: {
-        fontSize: 22,
+        fontSize: normalize(26),
         fontWeight: '600',
         textAlign: 'center',
-        marginBottom: 18,
-        marginTop: 15, // Position it above the tracker card
+        marginBottom: height * 0.025,
+        marginTop: height * 0.02,
     },
     scrollContainer: {
-        paddingBottom: 30,
-        borderRadius: 10,
+        paddingBottom: height * 0.04,
+        borderRadius: width * 0.03,
     },
     featureCard: {
         backgroundColor: colors.white,
-        padding: 15,
-        borderRadius: 8,
-        marginBottom: 15,
+        padding: width * 0.05,
+        borderRadius: width * 0.025,
+        marginBottom: height * 0.02,
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 1 },
@@ -75,14 +84,15 @@ const styles = StyleSheet.create({
         borderColor: colors.black,
     },
     featureTitle: {
-        fontSize: 18,
+        fontSize: normalize(20),
         fontWeight: '600',
         color: colors.orange,
-        marginBottom: 5,
+        marginBottom: height * 0.01,
     },
     featureDescription: {
-        fontSize: 16,
+        fontSize: normalize(18),
         color: colors.black,
+        lineHeight: normalize(24),
     },
 });
 

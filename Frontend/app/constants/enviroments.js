@@ -2,11 +2,11 @@
 const enviroments = {
   // Main API URLs with fallbacks
   API_URLS: [
-    'https://aa37-2a09-bac5-488e-5cd-00-94-2f.ngrok-free.app',
+    'https://angel-soonest-lead-combination.trycloudflare.com',
   ],
   
   // For backward compatibility
-  API_BASE_URL: 'https://aa37-2a09-bac5-488e-5cd-00-94-2f.ngrok-free.app',
+  API_BASE_URL: 'https://angel-soonest-lead-combination.trycloudflare.com',
   API_FALLBACK_URL: 'http://localhost:3001',
   API_LOCAL_URL: 'http://127.0.0.1:3001',
   

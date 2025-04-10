@@ -1,11 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  Image, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator,
+  Platform,
+  Dimensions
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
 import colors from '../../constants/colors';
 import TMT from '../../../assets/images/tmt250.png';
 import Ionicons from '@expo/vector-icons/Ionicons';
+
+const { width, height } = Dimensions.get('window');
+
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return size * scale * 1; // Increased by 20% for bigger fonts
+};
 
 const TrackerList = () => {
   const router = useRouter();
@@ -116,59 +133,62 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
-    paddingTop: 30,
+    paddingTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.07,
   },
   header: {
     position: 'absolute',
-    top: 35,
-    left: 10,
+    top: Platform.OS === 'ios' ? height * 0.08 : height * 0.07,
+    left: width * 0.03,
     zIndex: 1,
   },
   scrollContainer: {
     alignItems: 'center',
-    paddingBottom: 20,
+    paddingBottom: height * 0.03,
   },
   deviceTitle: {
-    fontSize: 20,
+    fontSize: normalize(22),
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 15,
-    marginTop: 15, // Position it above the tracker card
+    marginBottom: height * 0.02,
+    marginTop: height * 0.02,
   },
   cardContainer: {
     width: '90%',
-    marginBottom: 15,
+    marginBottom: height * 0.02,
     alignItems: 'center',
   },
   trackerCard: {
     width: '100%',
     backgroundColor: colors.white,
-    padding: 15,
-    borderRadius: 8,
+    padding: width * 0.04,
+    borderRadius: width * 0.02,
     shadowColor: '#000',
     shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
+    shadowRadius: 4,
     borderWidth: 1,
     borderColor: colors.black,
+    elevation: 3,
   },
   infoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 5,
+    paddingVertical: height * 0.006,
   },
   label: {
-    fontSize: 16,
+    fontSize: normalize(18),
     color: colors.black,
   },
   value: {
-    fontSize: 16,
+    fontSize: normalize(18),
     fontWeight: 'bold',
     color: colors.yellow,
   },
   imageTMT: {
-    width: 200,
-    height: 200,
-    marginTop: 30,
+    width: width * 0.5,
+    height: width * 0.5,
+    marginTop: height * 0.04,
+    resizeMode: 'contain',
   },
   loadingContainer: {
     flex: 1,

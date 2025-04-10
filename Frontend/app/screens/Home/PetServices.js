@@ -22,6 +22,16 @@ import Constants from 'expo-constants';
 import Vet from '../../../assets/images/vet.jpg';
 import Store from '../../../assets/images/petStore.jpg';
 
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
+
 // Nominatim API (OpenStreetMap's free geocoding service)
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
@@ -428,8 +438,6 @@ export default function PetServices() {
     return categories[0].image;
   };
 
-
-
   let text = 'Waiting for location...';
   if (errorMsg) {
     text = errorMsg;
@@ -646,8 +654,6 @@ export default function PetServices() {
   );
 }
 
-const { width, height } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -659,52 +665,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: height * 0.018,
+    fontSize: normalize(16),
     color: colors.black,
   },
   header: {
     backgroundColor: colors.white,
     justifyContent: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.05,
+    paddingTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.06,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '600',
     color: colors.black,
   },
   attribution: {
     position: 'absolute',
-    right: 10,
-    bottom: 5,
+    right: width * 0.025,
+    bottom: height * 0.006,
   },
   attributionText: {
-    fontSize: 10,
+    fontSize: normalize(10),
     color: colors.grey,
   },
   categoryContainer: {
-    maxHeight: 60,
+    maxHeight: height * 0.07,
     backgroundColor: colors.white,
-    paddingVertical: 10,
+    paddingVertical: height * 0.012,
   },
   categoryContent: {
-    paddingHorizontal: 15,
+    paddingHorizontal: width * 0.038,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F0F0F0',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
+    paddingHorizontal: width * 0.038,
+    paddingVertical: height * 0.01,
+    borderRadius: width * 0.05,
+    marginRight: width * 0.025,
   },
   categoryText: {
-    marginLeft: 5,
-    fontSize: 14,
+    marginLeft: width * 0.012,
+    fontSize: normalize(14),
     fontWeight: '500',
   },
   map: {
@@ -714,13 +720,13 @@ const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
     backgroundColor: colors.white,
-    paddingHorizontal: 15,
-    paddingTop: 15,
+    paddingHorizontal: width * 0.038,
+    paddingTop: height * 0.018,
   },
   listTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: normalize(18),
+    fontWeight: '600',
+    marginBottom: height * 0.012,
     color: colors.black,
   },
   list: {
@@ -730,63 +736,63 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
+    paddingTop: height * 0.06,
   },
   noResultsText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: 'bold',
     color: colors.black,
     textAlign: 'center',
   },
   noResultsSubtext: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.grey,
     textAlign: 'center',
-    marginTop: 5,
+    marginTop: height * 0.006,
   },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: height * 0.015,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
   },
   serviceIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: width * 0.12,
+    height: width * 0.12,
+    borderRadius: width * 0.06,
     backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: width * 0.038,
   },
   serviceDetails: {
     flex: 1,
   },
   serviceName: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
     color: colors.black,
   },
   serviceAddress: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.grey,
-    marginTop: 3,
+    marginTop: height * 0.004,
   },
   serviceRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: height * 0.006,
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.black,
-    marginLeft: 4,
+    marginLeft: width * 0.01,
   },
   openStatus: {
-    fontSize: 12,
+    fontSize: normalize(12),
     fontWeight: '500',
-    marginLeft: 10,
+    marginLeft: width * 0.025,
   },
   modalContainer: {
     flex: 1,
@@ -795,115 +801,115 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
+    borderTopLeftRadius: width * 0.05,
+    borderTopRightRadius: width * 0.05,
+    padding: width * 0.05,
     maxHeight: height * 0.8,
   },
   closeButton: {
     position: 'absolute',
-    right: 15,
-    top: 15,
+    right: width * 0.038,
+    top: height * 0.018,
     zIndex: 10,
     backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+    borderRadius: width * 0.05,
+    width: width * 0.1,
+    height: width * 0.1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   serviceImageContainer: {
     width: '100%',
-    height: 200,
-    borderRadius: 10,
+    height: height * 0.25,
+    borderRadius: width * 0.025,
     overflow: 'hidden',
-    marginBottom: 15,
+    marginBottom: height * 0.018,
   },
   serviceImage: {
     width: '100%',
     height: '100%',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: normalize(22),
     fontWeight: 'bold',
     color: colors.black,
-    marginBottom: 5,
+    marginBottom: height * 0.006,
   },
   modalAddress: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.grey,
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: height * 0.025,
   },
   modalRating: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.black,
-    marginLeft: 5,
+    marginLeft: width * 0.012,
   },
   modalOpenStatus: {
-    fontSize: 14,
+    fontSize: normalize(14),
     fontWeight: '500',
-    marginLeft: 10,
+    marginLeft: width * 0.025,
   },
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 5
+    marginBottom: height * 0.012,
+    gap: width * 0.012
   },
   actionButton: {
     flex: 1,
     backgroundColor: colors.yellow,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.025,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
   actionButtonText: {
     color: colors.white,
-    marginLeft: 5,
-    fontSize: 12,
+    marginLeft: width * 0.012,
+    fontSize: normalize(12),
   },
   servicesContainer: {
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: height * 0.012,
+    marginBottom: height * 0.025,
   },
   servicesTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: 'bold',
     color: colors.black,
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   serviceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: height * 0.006,
   },
   serviceText: {
-    fontSize: 15,
+    fontSize: normalize(15),
     color: colors.black,
   },
   attributionContainer: {
-    marginTop: 20,
-    padding: 10,
+    marginTop: height * 0.025,
+    padding: width * 0.025,
     borderTopWidth: 1,
     borderTopColor: '#EEEEEE',
     alignItems: 'center',
   },
   attributionTitle: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.grey,
   },
   attributionLink: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.primary,
     textDecorationLine: 'underline',
-    marginTop: 3,
+    marginTop: height * 0.004,
   },
 });

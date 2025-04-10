@@ -10,6 +10,8 @@ import {
   Pressable,
   Image,
   FlatList,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -19,6 +21,15 @@ import { useNavigation, useRouter } from 'expo-router';
 import colors from '../../constants/colors';
 import environments from '../../constants/enviroments';
 import DogImage from '../../../assets/images/dog_pics.png';
+
+const { width, height } = Dimensions.get('window');
+
+// Responsive font size function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is standard iPhone width
+  const newSize = size * scale;
+  return Math.round(newSize);
+};
 
 const ActivityPathTracker = () => {
     const navigation = useNavigation();
@@ -550,6 +561,21 @@ const fetchWalkData = async (deviceId) => {
     return hourlyActivity.map((minutes, hour) => ({ hour, minutes })).filter(item => item.minutes > 0);
   };
   
+  // Check if there's any activity today
+  const hasActivityToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return recentWalks.some(walk => {
+      if (!walk || !walk.coordinates || walk.coordinates.length === 0) return false;
+      
+      const walkDate = new Date(walk.coordinates[0].timestamp);
+      walkDate.setHours(0, 0, 0, 0);
+      
+      return walkDate.getTime() === today.getTime();
+    });
+  };
+  
   
   
   const goToPreviousDevice = () => {
@@ -666,42 +692,47 @@ const fetchWalkData = async (deviceId) => {
               {activityStats.totalMinutes}/{activityStats.goalMinutes} min
             </Text>
           </View>
-          <View style={styles.barGraphWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View>
-              {/* Bar Graph Row */}
-              <View style={styles.barGraphRow}>
-                {[...Array(24).keys()].map((hour) => {
-                  const bar = calculateBarHeights(recentWalks).find((item) => item.hour === hour);
-                  return (
-                    <View key={hour} style={styles.barColumn}>
-                      <View
-                        style={[
-                          styles.bar,
-                          { height: bar ? Math.min(80, bar.minutes * 2) : 0 }
-                        ]}
-                      />
+          
+          {hasActivityToday() ? (
+            <View style={styles.barGraphWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View>
+                  {/* Bar Graph Row */}
+                  <View style={styles.barGraphRow}>
+                    {[...Array(24).keys()].map((hour) => {
+                      const bar = calculateBarHeights(recentWalks).find((item) => item.hour === hour);
+                      return (
+                        <View key={hour} style={styles.barColumn}>
+                          <View
+                            style={[
+                              styles.bar,
+                              { height: bar ? Math.min(80, bar.minutes * 2) : 0 }
+                            ]}
+                          />
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Axis Line & Labels */}
+                  <View style={styles.axisContainer}>
+                    <View style={styles.axisLine} />
+                    <View style={styles.axisLabelsRow}>
+                      {[...Array(24).keys()].map((hour) => (
+                        <Text key={hour} style={styles.axisLabel}>
+                          {hour}
+                        </Text>
+                      ))}
                     </View>
-                  );
-                })}
-              </View>
-
-              {/* Axis Line & Labels */}
-              <View style={styles.axisContainer}>
-                <View style={styles.axisLine} />
-                <View style={styles.axisLabelsRow}>
-                  {[...Array(24).keys()].map((hour) => (
-                    <Text key={hour} style={styles.axisLabel}>
-                      {hour}
-                    </Text>
-                  ))}
+                  </View>
                 </View>
-              </View>
+              </ScrollView>
             </View>
-          </ScrollView>
-        </View>
-
-
+          ) : (
+            <View style={styles.noActivityContainer}>
+              <Text style={styles.noActivityText}>No activity recorded today</Text>
+            </View>
+          )}
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
@@ -818,7 +849,7 @@ const fetchWalkData = async (deviceId) => {
                   Your activity score is based on total daily minutes compared to your goal (60 min), and past 7-day averages.
                 </Text>
                 <Text style={styles.contactText}>
-                  Staying consistent helps boost your pet’s wellness!
+                  Staying consistent helps boost your pet's wellness!
                 </Text>
               </View>
             </View>
@@ -837,20 +868,20 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingHorizontal: width * 0.04,
+
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingHorizontal: 4,
+    marginBottom: height * 0.02,
+    paddingHorizontal: width * 0.01,
+    marginTop: Platform.OS === 'ios' ? height * 0.04 : height * 0.03,
   },
   
   arrowButton: {
-    padding: 10,
+    padding: width * 0.025,
     opacity: 1,
   },
   
@@ -864,15 +895,15 @@ const styles = StyleSheet.create({
   },
   
   headerText: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '600',
     color: colors.black,
   },
   wellnessCard: {
     backgroundColor: colors.yellow,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 13,
+    padding: width * 0.04,
+    marginBottom: height * 0.016,
     shadowColor: colors.black,
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -880,24 +911,24 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   Imagecontainer: {
-    width: 65,
-    height: 65,
-    borderRadius: 50,
-    marginRight: 12,
+    width: width * 0.16,
+    height: width * 0.16,
+    borderRadius: width * 0.08,
+    marginRight: width * 0.03,
     backgroundColor: colors.black,
-    marginTop: 5,
-    borderWidth: 8,
+    marginTop: height * 0.006,
+    borderWidth: width * 0.02,
     borderColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 25,
+    width: width * 0.1,
+    height: width * 0.1,
+    borderRadius: width * 0.05,
   },
   infoIcon: {
     marginLeft: 'auto',
@@ -905,15 +936,15 @@ const styles = StyleSheet.create({
   },
   scoreContainer: {
     justifyContent: 'center',
-    marginTop: 5,
+    marginTop: height * 0.006,
   },
   score: {
-    fontSize: 24,
+    fontSize: normalize(24),
     fontWeight: '700',
     color: colors.black,
   },
   status: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
   },
   activityRow: {
@@ -922,57 +953,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: width * 0.025,
+    paddingVertical: height * 0.008,
     borderColor: colors.black,
     borderWidth: 1,
   },
   activityLabel: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '500',
     color: colors.black,
-    marginBottom: 2,
+    marginBottom: height * 0.002,
   },
   activityStatus: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: width * 0.02,
+    height: width * 0.02,
     backgroundColor: colors.green,
-    borderRadius: 4,
-    marginRight: 6,
+    borderRadius: width * 0.01,
+    marginRight: width * 0.015,
   },
   activityStatusText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
-    marginBottom: 2,
+    marginBottom: height * 0.002,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: normalize(20),
     fontWeight: '600',
     color: colors.black,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   activityCard: {
     backgroundColor: colors.yellow,
     borderRadius: 16,
-    padding: 16,
+    padding: width * 0.04,
     shadowColor: colors.black,
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   activityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   minutesText: {
-    fontSize: 20,
+    fontSize: normalize(20),
     fontWeight: '600',
     color: colors.black,
   },
@@ -980,8 +1011,8 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 7,
-    marginTop: 20,
+    gap: width * 0.018,
+    marginTop: height * 0.025,
   },
   statBox: {
     flex: 1,
@@ -990,53 +1021,53 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: colors.white,
     borderRadius: 10,
-    paddingVertical: 5,
+    paddingVertical: height * 0.006,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: normalize(13),
     color: colors.yellow,
-    paddingBottom: 2,
+    paddingBottom: height * 0.002,
   },
   statValue: {
-    fontSize: 14,
+    fontSize: normalize(14),
     fontWeight: '650',
     color: colors.black,
   },
   barGraphWrapper: {
     backgroundColor: colors.yellow,
-    paddingTop: 10,
-    paddingBottom: 2,
+    paddingTop: height * 0.012,
+    paddingBottom: height * 0.002,
     borderRadius: 12,
   },
   
   barGraphRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 90,
-    paddingHorizontal: 4,
+    height: height * 0.11,
+    paddingHorizontal: width * 0.01,
   },
   
   barColumn: {
-    width: 16, // bar width
+    width: width * 0.04,
     alignItems: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: width * 0.005,
   },
   
   bar: {
-    width: 14,
+    width: width * 0.035,
     backgroundColor: colors.white,
     borderRadius: 2,
   },
   
   axisContainer: {
-    marginTop: 6,
+    marginTop: height * 0.008,
   },
   
   axisLine: {
     height: 1.5,
     backgroundColor: colors.black,
     width: '100%',
-    marginBottom: 4,
+    marginBottom: height * 0.005,
   },
   
   axisLabelsRow: {
@@ -1044,29 +1075,29 @@ const styles = StyleSheet.create({
   },
   
   axisLabel: {
-    width: 20,
+    width: width * 0.05,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: normalize(10),
     color: colors.black,
   },
   
   loadingContainer: {
-    height: 200,
+    height: height * 0.25,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: height * 0.012,
     color: colors.black,
   },
   walkTabs: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   walkTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.01,
+    marginRight: width * 0.02,
     backgroundColor: colors.white,
     borderRadius: 16,
     borderWidth: 1,
@@ -1076,11 +1107,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
   },
   walkTabText: {
-    fontSize: 12,
+    fontSize: normalize(12),
     color: colors.black,
   },
   walkDetails: {
-    marginBottom: 15,
+    marginBottom: height * 0.02,
   },
   walkStatsRow: {
     flexDirection: 'row',
@@ -1091,24 +1122,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.yellow,
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 40,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.140,
     borderWidth: 1,
     borderColor: colors.black,
     fontWeight: '600',
   },
   walkStatLabel: {
-    fontSize: 13,
+    fontSize: normalize(13),
     color: colors.white,
   },
   walkStatValue: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '600',
     color: colors.black,
   },
   mapContainer: {
-    height: 200,
-    marginBottom: 20,
+    height: height * 0.25,
+    marginBottom: height * 0.025,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 2,
@@ -1125,11 +1156,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lightGray,
   },
   noDataText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
   },
   noWalksContainer: {
-    height: 200,
+    height: height * 0.25,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -1138,7 +1169,7 @@ const styles = StyleSheet.create({
     borderColor: colors.black,
   },
   noWalksText: {
-    fontSize: 16,
+    fontSize: normalize(16),
     color: colors.black,
   },
   modalOverlay: {
@@ -1151,7 +1182,7 @@ const styles = StyleSheet.create({
     width: '90%',
     backgroundColor: colors.white,
     borderRadius: 10,
-    padding: 15,
+    padding: width * 0.04,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.25,
@@ -1166,21 +1197,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: normalize(18),
     fontWeight: '600',
     textAlign: 'center',
     flex: 1,
-    marginBottom: 10,
+    marginBottom: height * 0.012,
   },
   closeButton: {
     position: 'absolute',
-    right: -5,
-    top: -13,
-    padding: 10,
+    right: -width * 0.012,
+    top: -height * 0.016,
+    padding: width * 0.025,
   },
   modalSubheader: {
-    fontSize: 14,
-    marginBottom: 10,
+    fontSize: normalize(14),
+    marginBottom: height * 0.012,
     textAlign: 'center',
   },
   contactInfo: {
@@ -1188,42 +1219,42 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: colors.yellow,
     borderRadius: 10,
-    padding: 18,
-    marginHorizontal: 10,
+    padding: width * 0.045,
+    marginHorizontal: width * 0.025,
   },
   contactText: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: normalize(16),
+    lineHeight: normalize(24),
   },
   
   infoBox: {
     backgroundColor: colors.yellow,
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    padding: width * 0.025,
+    marginBottom: height * 0.012,
   },
   infoHeader: {
-    fontSize: 16,
+    fontSize: normalize(16),
     fontWeight: '700',
     color: colors.black,
-    marginBottom: 4,
+    marginBottom: height * 0.005,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: normalize(14),
     color: colors.black,
   },
   recentWalksContainer: {
-    alignItems: 'center', // Center the content horizontally
-    justifyContent: 'center', // Center the content vertically (optional)
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   firstButton: {
     backgroundColor: colors.white,
-    paddingVertical: 12,
-    paddingHorizontal: 26,
+    paddingVertical: height * 0.015,
+    paddingHorizontal: width * 0.065,
     borderRadius: 15,
-    marginBottom: 10,
-    width: '85%', // Adjust the width as needed
+    marginBottom: height * 0.012,
+    width: '85%',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.black,
@@ -1233,8 +1264,24 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: colors.black,
-    fontSize: 16,
+    fontSize: normalize(16),
     paddingBottom: 1,
+  },
+  
+  noActivityContainer: {
+    backgroundColor: colors.yellow,
+    paddingTop: height * 0.012,
+    paddingBottom: height * 0.012,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: height * 0.11,
+  },
+  
+  noActivityText: {
+    fontSize: normalize(16),
+    color: colors.black,
+    textAlign: 'center',
   },
 });
 

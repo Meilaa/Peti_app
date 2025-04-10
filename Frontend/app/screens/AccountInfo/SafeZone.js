@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import MapView, { Marker, Polygon } from 'react-native-maps';
@@ -21,6 +22,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import environments from '../../constants/enviroments';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+const { width, height } = Dimensions.get('window');
+
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return size * scale;
+};
 
 const SafeZone = () => {
   const router = useRouter();
@@ -780,13 +787,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
+    paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center', // Centers the title
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingHorizontal: width * 0.04,
+    paddingVertical: height * 0.015,
     backgroundColor: colors.yellow,
   },
   
@@ -799,19 +807,19 @@ const styles = StyleSheet.create({
     width: 40,
   },
   title: {
-    fontSize: 22,
+    fontSize: normalize(24),
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 30, // Position it above the tracker card
+    marginTop: height * 0.03,
   },
   mapContainer: {
-    height: 450,
-    margin: 16,
-    borderRadius: 16,
+    height: height * 0.65,
+    margin: width * 0.04,
+    borderRadius: width * 0.04,
     overflow: 'hidden',
     elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
@@ -914,13 +922,13 @@ addButtonText: {
   territoryItem: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: width * 0.04,
+    padding: width * 0.04,
+    marginBottom: height * 0.02,
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: height * 0.001 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     borderLeftWidth: 4,
@@ -947,7 +955,7 @@ addButtonText: {
   },
   territoryName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
   territoryMeta: {
@@ -972,30 +980,30 @@ addButtonText: {
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContent: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: colors.white,
+    borderRadius: width * 0.04,
+    padding: width * 0.05,
     width: '90%',
-    maxWidth: 420,
-    elevation: 5,
+    maxWidth: width * 0.85,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: height * 0.002 },
     shadowOpacity: 0.25,
-    shadowRadius: 5,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: normalize(20),
     fontWeight: '600',
-    marginBottom: 24,
+    marginBottom: height * 0.02,
     textAlign: 'center',
     color: colors.black,
   },
   input: {
     backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 18,
-    fontSize: 16,
+    borderRadius: width * 0.03,
+    padding: width * 0.04,
+    marginBottom: height * 0.02,
+    fontSize: normalize(16),
     borderWidth: 1,
     borderColor: '#EEEEEE',
   },
@@ -1035,7 +1043,7 @@ addButtonText: {
   },
   selectedAnimalOptionText: {
     color: '#FFF',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   errorText: {
     color: '#FF5252',
