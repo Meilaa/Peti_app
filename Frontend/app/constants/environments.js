@@ -1,7 +1,8 @@
 // API and environment configuration
 const environments = {
   // Try these API URLs in order
-  API_BASE_URL: 'https://angel-soonest-lead-combination.trycloudflare.com', // Your actual IP
+  API_BASE_URL: 'http://134.209.237.216:3001', // Your VM server IP
+
   
   // Fallback URLs
   API_FALLBACK_URLS: [

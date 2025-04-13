@@ -2,13 +2,12 @@
 const enviroments = {
   // Main API URLs with fallbacks
   API_URLS: [
-    'https://angel-soonest-lead-combination.trycloudflare.com',
+    'http://134.209.237.216:3001',
   ],
   
   // For backward compatibility
-  API_BASE_URL: 'https://angel-soonest-lead-combination.trycloudflare.com',
+  API_BASE_URL: 'http://134.209.237.216:3001',
   API_FALLBACK_URL: 'http://localhost:3001',
-  API_LOCAL_URL: 'http://127.0.0.1:3001',
   
   // Colors
   colors: {
