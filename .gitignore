@@ -1,10 +1,11 @@
 # Ignore everything
 *
 
-# Allow app/screens directory
-!app/
-!app/screens/
-!app/screens/**
+# Allow Frontend/app directory but exclude constants folder
+!Frontend/
+!Frontend/app/
+!Frontend/app/**
+Frontend/app/constants/
 
 # Node modules
 node_modules/
