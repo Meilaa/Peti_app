@@ -1,14 +1,14 @@
 // API and environment configuration
 const environments = {
   // Try these API URLs in order
-  API_BASE_URL: 'http://134.209.237.216:3001', // Your VM server IP
+  API_BASE_URL: 'http://134.209.237.216', // Your VM server IP
 
   
   // Fallback URLs
   API_FALLBACK_URLS: [
-    'http://localhost:3001',
-    'http://127.0.0.1:3001',
-    'http://10.0.2.2:3001' // For Android emulator
+    'http://134.209.237.216',
+    'http://134.209.237.216',
+    'http://134.209.237.216' // For Android emulator
   ],
   
   // Max retry attempts for API calls

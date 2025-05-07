@@ -109,7 +109,7 @@ const SafeZone = () => {
   // Try all API endpoints in sequence
   const fetchWithMultipleEndpoints = async (endpoint, options) => {
     try {
-      const apiUrl = environments.API_BASE_URL || 'http://localhost:3001';
+      const apiUrl = environments.API_BASE_URL;
       console.log(`📡 Fetching from: ${apiUrl}${endpoint}`);
       
       const response = await fetch(`${apiUrl}${endpoint}`, options);

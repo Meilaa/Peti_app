@@ -2,12 +2,12 @@
 const enviroments = {
   // Main API URLs with fallbacks
   API_URLS: [
-    'http://134.209.237.216:3001',
+    'http://134.209.237.216',
   ],
   
   // For backward compatibility
-  API_BASE_URL: 'http://134.209.237.216:3001',
-  API_FALLBACK_URL: 'http://localhost:3001',
+  API_BASE_URL: 'http://134.209.237.216',
+  API_FALLBACK_URL: 'http://134.209.237.216',
   
   // Colors
   colors: {
