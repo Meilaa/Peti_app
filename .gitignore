@@ -1,31 +1,12 @@
 # Ignore everything
 *
 
-# Allow Frontend/app directory but exclude constants folder
+# Allow the Frontend directory and all its contents
 !Frontend/
-!Frontend/app/
-!Frontend/app/**
+!package.json/
+!package-lock.json/
+yarn.lock/
+!Frontend/**
+
+# Specifically ignore constants folder inside Frontend/app
 Frontend/app/constants/
-
-# Node modules
-node_modules/
-
-# Environment variables
-.env
-
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# IDE and editor files
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Temporary files
-*.tmp
-*.log
-.DS_Store
-Thumbs.db
