@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 14.4.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": { "EXPO_TOKEN": "AetLIdmVPGwahH8-W4DyxIlzwBtj7w401AX6P4B_" },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
