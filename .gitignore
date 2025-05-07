@@ -1,27 +1,16 @@
+# Ignore everything
+*
+
+# Allow app/screens directory
+!app/
+!app/screens/
+!app/screens/**
+
 # Node modules
 node_modules/
 
-# Backend files
-Backend/
-Backend/package-lock.json
-
-# Frontend assets and constants
-assets/Frontend/
-Frontend/app/constants/
-
-# Configuration files
-Frontend/app.json
-check-node.ps1
-restore_instructions.txt
-update-bachelor-repo.ps1
-
 # Environment variables
 .env
-
-# Build files
-.expo/
-dist/
-web-build/
 
 # Debug logs
 npm-debug.log*
