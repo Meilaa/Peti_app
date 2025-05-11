@@ -590,16 +590,11 @@ const DangerZone = () => {
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <View style={styles.backButtonContainer}>
-              <TouchableOpacity 
-                style={styles.backButton} 
-                onPress={() => router.back()}
-              >
-                <Ionicons name="chevron-back" size={24} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.title}>Danger Zone Alerts</Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={normalize(24)} color={colors.white} />
+            </TouchableOpacity>
           </View>
+          <Text style={styles.header2}>Danger Zone Alerts</Text>
 
           <View style={styles.mapContainer}>
             <MapView
@@ -813,26 +808,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
-    paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    paddingTop: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: width * 0.04,
-    paddingVertical: height * 0.015,
-    backgroundColor: colors.yellow,
-  },
-  backButtonContainer: {
     position: 'absolute',
+    top: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
     left: width * 0.04,
+    zIndex: 1,
   },
-
-  title: {
-    fontSize: normalize(24),
+  header2: {
+    fontSize: normalize(20),
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: height * 0.03,
+    marginBottom: height * 0.025,
+    marginTop: height * 0.02,
   },
   mapContainer: {
     height: height * 0.65,

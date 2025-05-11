@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.lightYellow,
     paddingTop: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    paddingBottom: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
   },
   scrollContainer: {
     padding: width * 0.05,

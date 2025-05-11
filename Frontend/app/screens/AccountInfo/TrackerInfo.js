@@ -94,9 +94,10 @@ const TrackerList = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack}>
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
+          <Ionicons name="chevron-back" size={normalize(24)} color={colors.white} />
         </TouchableOpacity>
       </View>
+      <Text style={styles.header2}>Tracker Info</Text>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {combinedList.map((device, index) => (
@@ -133,13 +134,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.yellow,
-    paddingTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.07,
+    paddingTop: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
   },
   header: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? height * 0.08 : height * 0.07,
+    top: Platform.OS === 'ios' ? height * 0.07 : height * 0.06,
     left: width * 0.03,
     zIndex: 1,
+  },
+  header2: {
+    fontSize: normalize(26),
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: height * 0.025,
+    marginTop: height * 0.02,
   },
   scrollContainer: {
     alignItems: 'center',

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Pressable, ScrollView, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import colors from '../../constants/colors';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import colors from '../../constants/colors';
 
 // Get screen dimensions
 const { width, height } = Dimensions.get('window');
@@ -15,9 +17,68 @@ const normalize = (size) => {
   return Math.round(newSize);
 };
 
-const AccountPage = () => {
+export const AccountPage = () => {
   const router = useRouter();
   const [isModalVisible, setModalVisible] = useState(false);
+  const [showPremiumButton, setShowPremiumButton] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    // Check if user has been using the app for 2 weeks
+    checkAppUsageTime();
+    
+    // Check if user already has premium subscription
+    checkPremiumStatus();
+  }, []);
+
+  const checkAppUsageTime = async () => {
+    try {
+      // Get first app open timestamp
+      let firstOpenTimestamp = await AsyncStorage.getItem('firstOpenTimestamp');
+      
+      if (!firstOpenTimestamp) {
+        // If this is the first time opening the app, set the timestamp
+        firstOpenTimestamp = Date.now().toString();
+        await AsyncStorage.setItem('firstOpenTimestamp', firstOpenTimestamp);
+      }
+      
+      // Calculate time difference
+      const twoWeeksInMs = 14 * 24 * 60 * 60 * 1000; // 14 days in milliseconds
+      const timeDifference = Date.now() - parseInt(firstOpenTimestamp);
+      
+      // For testing purposes - force the button to show
+      setShowPremiumButton(true);
+      
+      // Regular code (commented out for testing)
+      // setShowPremiumButton(timeDifference >= twoWeeksInMs);
+    } catch (error) {
+      console.error('Error checking app usage time:', error);
+    }
+  };
+
+  const checkPremiumStatus = async () => {
+    try {
+      // For testing purposes - force premium status to false
+      setIsPremium(false);
+      
+      // Regular code (commented out for testing)
+      /*
+      const subscriptionData = await AsyncStorage.getItem('subscription');
+      if (subscriptionData) {
+        const subscription = JSON.parse(subscriptionData);
+        const now = new Date();
+        const expiryDate = new Date(subscription.expiryDate);
+        
+        // Check if subscription is still valid
+        if (expiryDate > now) {
+          setIsPremium(true);
+        }
+      }
+      */
+    } catch (error) {
+      console.error('Error checking premium status:', error);
+    }
+  };
 
   const logout = () => {
     router.push('/screens/Auth/FirstPage');
@@ -32,6 +93,13 @@ const AccountPage = () => {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         <Text style={styles.header}>Account</Text>
+
+        {isPremium && (
+          <View style={styles.premiumBadge}>
+            <FontAwesome5 name="crown" size={16} color={colors.white} />
+            <Text style={styles.premiumText}>Premium</Text>
+          </View>
+        )}
 
         <View style={styles.menuContainer}>
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('screens/AccountInfo/FeaturesGuide')}>
@@ -73,6 +141,19 @@ const AccountPage = () => {
             <Text style={styles.menuText}>Danger Zone</Text>
             <MaterialIcons name="arrow-forward-ios" size={20} color={colors.white} />
           </TouchableOpacity>
+
+          {showPremiumButton && !isPremium && (
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => router.push('screens/AccountInfo/Payment')}
+            >
+              <View style={styles.iconContainer}>
+                <FontAwesome5 style={styles.iconDiv} name="crown" size={20} color={colors.yellow} />
+              </View>
+              <Text style={styles.menuText}>Subscription</Text>
+              <MaterialIcons name="arrow-forward-ios" size={20} color={colors.white} />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.menuItem1} onPress={() => router.push('/screens/AccountInfo/Settings')}>
             <View style={styles.iconContainer}>
@@ -248,8 +329,21 @@ const styles = StyleSheet.create({
     fontSize: normalize(16), 
     fontWeight: '500', 
     color: colors.black, 
-    flex: 1, 
-    marginHorizontal: width * 0.04 
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.yellow,
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.04,
+    borderRadius: width * 0.05,
+    marginBottom: height * 0.02,
+  },
+  premiumText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    marginLeft: width * 0.02,
+    fontSize: normalize(14),
   },
 });
 

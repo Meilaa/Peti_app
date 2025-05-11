@@ -3,9 +3,9 @@ import { Modal, View, Text, Image, StyleSheet, TouchableOpacity, Pressable, Acti
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
-import MapView, { Marker, Polygon } from 'react-native-maps';
+import MapView, { Marker, Polyline, Polygon } from 'react-native-maps';
 import DogImage from '../../../assets/images/dog_pics.png';
-import Hybrid from '../../../assets/images/Hybrid.png';
+import Hybrid from '../../../assets/images/Hybrid.png'; 
 import Standard from '../../../assets/images/Standard.png';
 import Satellite from '../../../assets/images/Satellite.png';
 import colors from '../../constants/colors';
@@ -15,10 +15,19 @@ import moment from 'moment';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as Location from 'expo-location';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import * as Notifications from 'expo-notifications';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import notificationsHelper from '../../utils/notificationsHelper';
+import { initializeAppUsage, checkAndPromptForSubscription } from '../../utils/subscriptionUtils';
+import { showFunAlert } from '../../../utils/alerts';
 
-const DogWalkingApp = () => {
+const { width, height } = Dimensions.get('window');
+
+// Responsive scaling function
+const normalize = (size) => {
+  const scale = width / 375; // 375 is the standard iPhone width
+  return Math.round(size * scale);
+};
+
+function DogWalkingApp() {
   const navigation = useNavigation();
   const [mapType, setMapType] = useState('standard');
   const [currentLocationIndex, setCurrentLocationIndex] = useState(0);
@@ -49,9 +58,124 @@ const DogWalkingApp = () => {
   const [dangerZones, setDangerZones] = useState([]);
   const [inDangerZone, setInDangerZone] = useState({});
   const [forceUpdate, setForceUpdate] = useState(false);
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
 
   const currentBatteryLevel = currentLocation?.battery || 'N/A';
   const currentConnectionStatus = currentLocation?.status || 'Offline';
+
+  // Function to calculate a map region that encompasses all animal locations
+  const getMapRegionForAllLocations = (locations) => {
+    console.log("Calculating region for all locations:", locations.length);
+    
+    if (!locations || locations.length === 0) {
+      return {
+        latitude: 54.6892,
+        longitude: 25.2798,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
+      };
+    }
+
+    // Filter out any invalid locations or the placeholder with id='0'
+    const validLocations = locations.filter(loc => 
+      loc && loc.id !== '0' && 
+      loc.latitude && loc.longitude && 
+      !isNaN(Number(loc.latitude)) && !isNaN(Number(loc.longitude))
+    );
+    
+    if (validLocations.length === 0) {
+      return {
+        latitude: 54.6892,
+        longitude: 25.2798,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2,
+      };
+    }
+
+    // Find the bounds of all locations
+    let minLat = Number(validLocations[0].latitude);
+    let maxLat = Number(validLocations[0].latitude);
+    let minLng = Number(validLocations[0].longitude);
+    let maxLng = Number(validLocations[0].longitude);
+
+    // Get the min and max for all locations
+    validLocations.forEach(location => {
+      const lat = Number(location.latitude);
+      const lng = Number(location.longitude);
+      
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+    });
+
+    // Calculate center point
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    // Calculate deltas (with padding)
+    const latDelta = (maxLat - minLat) * 1.5 + 0.1; // Add padding
+    const lngDelta = (maxLng - minLng) * 1.5 + 0.1; // Add padding
+
+    console.log(`Calculated center: ${centerLat}, ${centerLng}, delta: ${latDelta}, ${lngDelta}`);
+    
+    return {
+      latitude: centerLat,
+      longitude: centerLng,
+      latitudeDelta: Math.max(0.1, latDelta), // Ensure minimum zoom level
+      longitudeDelta: Math.max(0.1, lngDelta), // Ensure minimum zoom level
+    };
+  };
+
+  // Function to calculate a map region for lost dogs
+  const getMapRegionForLostDogs = (lostDogs) => {
+    if (!lostDogs || lostDogs.length === 0) {
+      return null;
+    }
+
+    // Extract all valid coordinates
+    const validCoordinates = lostDogs.filter(dog => {
+      const lat = dog.latitude || dog.positionLatitude || dog.lastLocation?.latitude;
+      const lng = dog.longitude || dog.positionLongitude || dog.lastLocation?.longitude;
+      return lat && lng;
+    });
+
+    if (validCoordinates.length === 0) {
+      return null;
+    }
+
+    // Find the bounds
+    let minLat = Number.MAX_VALUE;
+    let maxLat = Number.MIN_VALUE;
+    let minLng = Number.MAX_VALUE;
+    let maxLng = Number.MIN_VALUE;
+
+    // Get the min and max for all locations
+    validCoordinates.forEach(dog => {
+      const lat = dog.latitude || dog.positionLatitude || dog.lastLocation?.latitude;
+      const lng = dog.longitude || dog.positionLongitude || dog.lastLocation?.longitude;
+      
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+    });
+
+    // Calculate center point
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    // Calculate deltas (with padding)
+    const latDelta = (maxLat - minLat) * 1.5 + 0.1; // Add padding
+    const lngDelta = (maxLng - minLng) * 1.5 + 0.1; // Add padding
+
+    return {
+      latitude: centerLat,
+      longitude: centerLng,
+      latitudeDelta: Math.max(0.05, latDelta), // Ensure minimum zoom level
+      longitudeDelta: Math.max(0.05, lngDelta), // Ensure minimum zoom level
+    };
+  };
 
   const getToken = async () => {
     try {
@@ -683,7 +807,6 @@ const DogWalkingApp = () => {
     isOffline: true,
     temperament: 'neutral',
   };
-
   const toggleViewAll = () => {
     if (!viewAll) {
       // When switching to view all, set a significantly zoomed out region
@@ -1009,43 +1132,6 @@ const DogWalkingApp = () => {
     };
   }, []);
 
-  // Update the button handler reference in the UI
-  // Find the button that calls toggleLostAggressiveTracking and replace with toggleLostDogTracking
-  <TouchableOpacity
-    style={[
-      styles.bottomMapButton,
-      trackingEnabled ? styles.trackingActiveButton : styles.trackingInactiveButton
-    ]}
-    onPress={toggleLostDogTracking}
-  >
-    <MaterialCommunityIcons 
-      name="dog-side" 
-      size={24} 
-      color="white" 
-    />
-    {trackingEnabled && <View style={styles.trackingIndicator} />}
-  </TouchableOpacity>
-
-  // Update the modal title to reflect all lost dogs, not just aggressive ones
-  const LostDogsModalHeader = () => (
-    <View style={styles.modalHeader}>
-      <Text style={styles.modalTitle}>Lost Dogs</Text>
-      <TouchableOpacity
-        style={styles.closeButton}
-        onPress={() => setModalVisible(false)}
-      >
-        <Ionicons name="close" size={24} color={colors.yellow} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  // Update text to show all lost dogs information
-  <Text style={styles.lostDogSummaryText}>
-    <Text style={styles.lostDogCount}>{lostAggressiveDogs.length}</Text> {lostAggressiveDogs.length === 1 ? 'dog has' : 'dogs have'} been reported lost in your area.
-  </Text>
-
-  // Replace any other instances of "lost aggressive dogs" with "lost dogs" in UI text
-
   // Update toggle function to handle all lost dogs, not just aggressive ones
   const toggleLostDogTracking = async () => {
     if (trackingEnabled) {
@@ -1093,12 +1179,9 @@ const DogWalkingApp = () => {
       let notificationsPermitted = notificationsEnabled;
       
       try {
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') {
-          const { status: newStatus } = await Notifications.requestPermissionsAsync();
-          notificationsPermitted = newStatus === 'granted';
-          setNotificationsEnabled(notificationsPermitted);
-        }
+        // Use our notificationsHelper instead of direct Notifications import
+        notificationsPermitted = await notificationsHelper.requestNotificationPermissions();
+        setNotificationsEnabled(notificationsPermitted);
       } catch (err) {
         console.log('Error getting notification permissions:', err);
       }
@@ -1323,18 +1406,12 @@ const DogWalkingApp = () => {
     const dangerStatus = inDangerZone[animalId];
     const safeStatus = safeZoneStatuses[animalId];
     
-    // Debug info for status box rendering
-    console.log(`Rendering status box for animal ${currentLocation.animalName} (ID: ${animalId}), forceUpdate: ${forceUpdate}`);
-    console.log('Danger status:', dangerStatus);
-    console.log('Safe status:', safeStatus);
-    
     let statusLabels = [];
     let dangerZoneLabel = null;
     let safeZoneLabel = null;
     
     // Prepare the danger zone label if applicable
     if (dangerStatus && dangerStatus.inDangerZone && dangerStatus.dangerType) {
-      console.log(`RENDERING IN DANGER ZONE LABEL for ${currentLocation.animalName}: ${dangerStatus.dangerType}`);
       dangerZoneLabel = (
         <Text 
           key="danger" 
@@ -1352,7 +1429,7 @@ const DogWalkingApp = () => {
           key="safe" 
           style={[styles.statusLabel, { 
             color: isUnsafe ? colors.unsafeZone : colors.safeZone,
-            marginLeft: 8 
+            marginLeft: 8
           }]}
         >
           {isUnsafe ? "Outside safe zone" : "Inside safe zone"}
@@ -1366,6 +1443,26 @@ const DogWalkingApp = () => {
     } else if (safeZoneLabel) {
       statusLabels = [safeZoneLabel];
     }
+  
+    return (
+      <View style={styles.statusBox}>
+        <View style={styles.statusBoxContent}>
+          <View style={styles.temperamentIconContainer}>
+            <MaterialCommunityIcons 
+              name={temperamentInfo.icon} 
+              size={24} 
+              color={temperamentInfo.color} 
+            />
+          </View>
+          <View style={styles.statusTextContainer}>
+            <Text style={styles.animalNameText}>{currentLocation.animalName}</Text>
+            <View style={styles.statusLabelsContainer}>
+              {statusLabels}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   // Create a function to show the detailed info for a specific dog
@@ -1611,44 +1708,49 @@ const DogWalkingApp = () => {
 
   // Optimize map markers with useMemo
   const animalMarkers = useMemo(() => {
+    console.log("Rendering markers, viewAll:", viewAll, "locations:", locations.length);
+    
     if (viewAll) {
-      return locations.map((location) => (
-        <Marker
-          key={`location-${location.id}`}
-          coordinate={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-          }}
-          title={location.animalName}
-          description={`Status: ${location.status}${location.isOffline ? ' (Last known location)' : ''}`}
-        >
-          <View style={styles.markerContainer}>
-            <View style={[
-              styles.marker,
-              location.isOffline && styles.offlineMarker,
-              location.temperament === 'aggressive' && styles.aggressiveMarker
-            ]}>
-              <Text style={styles.markerText}>🐕</Text>
-            </View>
-            {location.isOffline && (
-              <View style={styles.offlineIndicator}>
-                <MaterialIcons name="wifi-off" size={12} color="white" />
+      // Filter out the placeholder location with id='0'
+      return locations
+        .filter(location => location.id !== '0')
+        .map((location) => (
+          <Marker
+            key={`location-${location.id}`}
+            coordinate={{
+              latitude: Number(location.latitude),
+              longitude: Number(location.longitude),
+            }}
+            title={location.animalName}
+            description={`Status: ${location.status}${location.isOffline ? ' (Last known location)' : ''}`}
+          >
+            <View style={styles.markerContainer}>
+              <View style={[
+                styles.marker,
+                location.isOffline && styles.offlineMarker,
+                location.temperament === 'aggressive' && styles.aggressiveMarker
+              ]}>
+                <Text style={styles.markerText}>🐕</Text>
               </View>
-            )}
-          </View>
-        </Marker>
-      ));
+              {location.isOffline && (
+                <View style={styles.offlineIndicator}>
+                  <MaterialIcons name="wifi-off" size={normalize(12)} color="white" />
+                </View>
+              )}
+            </View>
+          </Marker>
+        ));
     } else {
       // Only show the current animal
       const currentAnimal = locations[currentLocationIndex];
-      if (!currentAnimal) return null;
+      if (!currentAnimal || currentAnimal.id === '0') return null;
 
       return (
         <Marker
           key={`location-${currentAnimal.id}`}
           coordinate={{
-            latitude: currentAnimal.latitude,
-            longitude: currentAnimal.longitude,
+            latitude: Number(currentAnimal.latitude),
+            longitude: Number(currentAnimal.longitude),
           }}
           title={currentAnimal.animalName}
           description={`Status: ${currentAnimal.status}${currentAnimal.isOffline ? ' (Last known location)' : ''}`}
@@ -1663,7 +1765,7 @@ const DogWalkingApp = () => {
             </View>
             {currentAnimal.isOffline && (
               <View style={styles.offlineIndicator}>
-                <MaterialIcons name="wifi-off" size={12} color="white" />
+                <MaterialIcons name="wifi-off" size={normalize(12)} color="white" />
               </View>
             )}
           </View>
@@ -1794,6 +1896,27 @@ const DogWalkingApp = () => {
     }
   };
 
+  useEffect(() => {
+    // Initialize app usage tracking for subscription
+    const initSubscriptionTracking = async () => {
+      await initializeAppUsage();
+    };
+    
+    initSubscriptionTracking();
+  }, []);
+
+  useEffect(() => {
+    // Check subscription status after app loads data
+    const checkSubscription = async () => {
+      if (!subscriptionChecked && !loading) {
+        await checkAndPromptForSubscription(navigation);
+        setSubscriptionChecked(true);
+      }
+    };
+    
+    checkSubscription();
+  }, [loading, subscriptionChecked, navigation]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -1805,7 +1928,7 @@ const DogWalkingApp = () => {
           <View style={styles.statusIconsRow}>
             <FontAwesome6 
               name="wifi" 
-              size={20} 
+              size={normalize(20)} 
               color={(viewAll ? false : locations[currentLocationIndex]?.status === 'Online') ? colors.yellow : colors.gray} 
             />
             <Text style={styles.statusText}>{viewAll ? '' : (locations[currentLocationIndex]?.status || 'Offline')}</Text>
@@ -1813,7 +1936,7 @@ const DogWalkingApp = () => {
           <View style={styles.statusIconsRow}>
             <FontAwesome6 
               name="battery-full" 
-              size={20} 
+              size={normalize(20)} 
               color={(viewAll ? false : locations[currentLocationIndex]?.battery !== undefined && locations[currentLocationIndex]?.battery !== 'N/A') ? colors.yellow : colors.gray} 
             />
             <Text style={styles.statusText}>{viewAll ? '' : (locations[currentLocationIndex]?.battery || 'N/A')}%</Text>
@@ -1823,52 +1946,53 @@ const DogWalkingApp = () => {
 
       <View style={styles.mapContainer}>
         <MapView
-          ref={mapRef}
+          ref={(ref) => setMapRef(ref)}
           style={styles.map}
           mapType={mapType}
           initialRegion={mapRegion}
           onRegionChangeComplete={handleRegionChange}
-          showsUserLocation={false}
-          onMapReady={onMapReady}
+          showsUserLocation={true}
         >
           {animalMarkers}
           {lostDogMarkers}
         </MapView>
 
-        {/* Bottom Map Controls */}
-        <View style={styles.bottomMapControls}>
+        {/* Bottom Map Controls - Now in horizontal layout */}
+        <View style={styles.mapControlsContainer}>
+          {/* Map Type Button */}
+          <TouchableOpacity 
+            style={styles.mapButton}
+            onPress={() => setMapSettingsVisible(true)}
+          >
+            <FontAwesome name="map" size={normalize(24)} color="white" />
+          </TouchableOpacity>
+          
           {/* Lost Dog Tracking Button */}
           <TouchableOpacity
             style={[
-              styles.bottomMapButton,
-              trackingEnabled ? styles.trackingActiveButton : styles.trackingInactiveButton
+              styles.mapButton,
+              trackingEnabled ? styles.trackingActiveButton : {}
             ]}
             onPress={toggleLostDogTracking}
           >
             <MaterialCommunityIcons 
               name="dog-side" 
-              size={24} 
+              size={normalize(24)} 
               color="white" 
             />
             {trackingEnabled && <View style={styles.trackingIndicator} />}
           </TouchableOpacity>
-
-          {/* Map Type Button */}
-          <TouchableOpacity 
-            style={styles.bottomMapButton}
-            onPress={() => setMapSettingsVisible(true)}
-          >
-            <FontAwesome name="map" size={24} color="white" />
-          </TouchableOpacity>
         </View>
         
-        {/* Button to show lost dogs list */}
+        {/* Button to show lost dogs list - Improved visibility */}
         {trackingEnabled && (
           <TouchableOpacity
             style={styles.viewLostDogsButton}
             onPress={() => setShowLostAggressiveInfo(true)}
           >
-            <MaterialCommunityIcons name="dog-side" size={20} color="white" />
+            <View style={styles.lostDogButtonIcon}>
+              <MaterialCommunityIcons name="dog-side" size={normalize(20)} color="white" />
+            </View>
             <Text style={styles.viewLostDogsText}>
               {lostAggressiveDogs.length > 0 
                 ? `View ${lostAggressiveDogs.length} Lost Dog${lostAggressiveDogs.length !== 1 ? 's' : ''}`
@@ -1885,7 +2009,7 @@ const DogWalkingApp = () => {
             onPress={goToPreviousAnimal} 
             disabled={currentLocationIndex === 0}
           >
-            <MaterialIcons name="arrow-back-ios-new" size={20} color={currentLocationIndex === 0 ? colors.gray : colors.yellow} />
+            <MaterialIcons name="arrow-back-ios-new" size={normalize(20)} color={currentLocationIndex === 0 ? colors.gray : colors.yellow} />
           </TouchableOpacity>
         )}
         
@@ -1899,7 +2023,7 @@ const DogWalkingApp = () => {
             onPress={goToNextAnimal} 
             disabled={currentLocationIndex === locations.length - 1}
           >
-            <MaterialIcons name="arrow-forward-ios" size={20} color={currentLocationIndex === locations.length - 1 ? colors.gray : colors.yellow} />
+            <MaterialIcons name="arrow-forward-ios" size={normalize(20)} color={currentLocationIndex === locations.length - 1 ? colors.gray : colors.yellow} />
           </TouchableOpacity>
         )}
       </View>
@@ -1911,7 +2035,7 @@ const DogWalkingApp = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Map Settings</Text>
               <Pressable onPress={() => setMapSettingsVisible(false)} style={styles.closeButton}>
-                <FontAwesome name="close" size={20} color={colors.yellow} />
+                <FontAwesome name="close" size={normalize(20)} color={colors.yellow} />
               </Pressable>
             </View>
             <View style={styles.modalBody}>
@@ -1950,7 +2074,7 @@ const DogWalkingApp = () => {
                 style={styles.closeButton}
                 onPress={() => setShowLostAggressiveInfo(false)}
               >
-                <MaterialIcons name="close" size={24} color="#fff" />
+                <MaterialIcons name="close" size={normalize(24)} color="#fff" />
               </TouchableOpacity>
             </View>
             
@@ -1983,7 +2107,7 @@ const DogWalkingApp = () => {
                     </Text>
                     
                     <View style={styles.lostDogItemFooter}>
-                      <MaterialIcons name="info-outline" size={16} color="#4CAF50" />
+                      <MaterialIcons name="info-outline" size={normalize(16)} color="#4CAF50" />
                       <Text style={styles.viewDetailsText}>View detailed information</Text>
                     </View>
                   </TouchableOpacity>
@@ -1991,7 +2115,7 @@ const DogWalkingApp = () => {
               </ScrollView>
             ) : (
               <View style={styles.noLostDogs}>
-                <MaterialCommunityIcons name="dog-side" size={50} color="#666" />
+                <MaterialCommunityIcons name="dog-side" size={normalize(50)} color="#666" />
                 <Text style={styles.noLostDogsText}>No lost dogs found</Text>
                 <Text style={styles.noLostDogsSubtext}>
                   Check again later or expand your search area
@@ -2011,102 +2135,9 @@ const DogWalkingApp = () => {
       {renderStatusBox()}
     </View>
   );
-};
+}
 
-// Helper function to calculate appropriate map region when showing all locations
-const getMapRegionForAllLocations = (locations) => {
-  if (!locations || locations.length === 0) {
-    return {
-      latitude: 54.687157,
-      longitude: 25.279652,
-      latitudeDelta: 1.0, // Significantly increased for much more zoom out
-      longitudeDelta: 1.0, // Significantly increased for much more zoom out
-    };
-  }
-
-  // Calculate bounds
-  let minLat = 90;
-  let maxLat = -90;
-  let minLng = 180;
-  let maxLng = -180;
-
-  locations.forEach(location => {
-    minLat = Math.min(minLat, location.latitude);
-    maxLat = Math.max(maxLat, location.latitude);
-    minLng = Math.min(minLng, location.longitude);
-    maxLng = Math.max(maxLng, location.longitude);
-  });
-
-  // Add padding
-  const latPadding = Math.max((maxLat - minLat) * 2.0, 0.5); // Much more padding
-  const lngPadding = Math.max((maxLng - minLng) * 2.0, 0.5); // Much more padding
-
-  return {
-    latitude: (minLat + maxLat) / 2,
-    longitude: (minLng + maxLng) / 2,
-    latitudeDelta: (maxLat - minLat) + latPadding,
-    longitudeDelta: (maxLng - minLng) + lngPadding,
-  };
-};
-
-// Also update the function for lost dogs map region
-const getMapRegionForLostDogs = (lostDogs) => {
-  if (!lostDogs || lostDogs.length === 0) {
-    return {
-      latitude: 54.687157,
-      longitude: 25.279652,
-      latitudeDelta: 1.0, // Significantly increased for much more zoom out
-      longitudeDelta: 1.0, // Significantly increased for much more zoom out
-    };
-  }
-
-  let minLat = 90;
-  let maxLat = -90;
-  let minLng = 180;
-  let maxLng = -180;
-
-  lostDogs.forEach(dog => {
-    const lat = dog.latitude || dog.positionLatitude || (dog.lastLocation && dog.lastLocation.latitude);
-    const lng = dog.longitude || dog.positionLongitude || (dog.lastLocation && dog.lastLocation.longitude);
-    
-    if (lat && lng) {
-      minLat = Math.min(minLat, lat);
-      maxLat = Math.max(maxLat, lat);
-      minLng = Math.min(minLng, lng);
-      maxLng = Math.max(maxLng, lng);
-    }
-  });
-
-  // If we couldn't find any valid coordinates, return a default region
-  if (minLat === 90 || maxLat === -90 || minLng === 180 || maxLng === -180) {
-    return {
-      latitude: 54.687157,
-      longitude: 25.279652,
-      latitudeDelta: 1.0, // Significantly increased for much more zoom out
-      longitudeDelta: 1.0, // Significantly increased for much more zoom out
-    };
-  }
-
-  // Add padding
-  const latPadding = Math.max((maxLat - minLat) * 2.0, 0.5); // Much more padding for lost dogs
-  const lngPadding = Math.max((maxLng - minLng) * 2.0, 0.5); // Much more padding for lost dogs
-
-  return {
-    latitude: (minLat + maxLat) / 2,
-    longitude: (minLng + maxLng) / 2,
-    latitudeDelta: (maxLat - minLat) + latPadding,
-    longitudeDelta: (maxLng - minLng) + lngPadding,
-  };
-};
-
-const { width, height } = Dimensions.get('window');
-
-// Responsive scaling function
-const normalize = (size) => {
-  const scale = width / 375; // 375 is the standard iPhone width
-  return Math.round(size * scale);
-};
-
+// Make sure we use this specific pattern that Expo Router recognizes
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -2160,8 +2191,11 @@ const styles = StyleSheet.create({
   mapControlsContainer: {
     position: 'absolute',
     right: width * 0.05,
-    bottom: height * 0.12,
+    bottom: height * 0.03,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: width * 0.025,
   },
   mapButton: {
     height: normalize(50),
@@ -2438,18 +2472,24 @@ const styles = StyleSheet.create({
   },
   statusBox: {
     position: 'absolute',
-    top: 80,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 10,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    top: height * 0.14, // Changed from 0.09 to 0.15 to position it lower
+    left: width * 0.02,
+    right: width * 0.05,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: width * 0.03,
+    padding: width * 0.03,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    width: '75%',
+    zIndex: 1000,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    maxWidth: '85%',
   },
   statusBoxContent: {
     flexDirection: 'row',
@@ -2475,6 +2515,7 @@ const styles = StyleSheet.create({
   statusLabelsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+
   },
   statusLabel: {
     fontSize: normalize(16), // Increased from 14
@@ -2494,6 +2535,8 @@ const styles = StyleSheet.create({
     width: '90%',
     marginHorizontal: 'auto',
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   trackingActiveButton: {
     backgroundColor: colors.black,
@@ -3150,23 +3193,39 @@ const styles = StyleSheet.create({
   },
   viewLostDogsButton: {
     position: 'absolute',
-    top: 30, // Higher position to avoid overlapping with bottom buttons
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Black with 30% opacity
-    padding: 14,
-    borderRadius: 25,
+    bottom: height * 0.03,
+    left: width * 0.05,
+    backgroundColor: 'rgba(255, 69, 0, 0.9)',
+    paddingVertical: height * 0.01,
+    paddingHorizontal: width * 0.03,
+    borderRadius: width * 0.05,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: colors.black,
+    maxWidth: '50%', // Limit width to ensure it doesn't overlap with right buttons
+  },
+  lostDogButtonIcon: {
+    width: normalize(36),
+    height: normalize(36),
+    borderRadius: normalize(18),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    elevation: 4,
-    zIndex: 999, // Ensure it appears above other elements
-},
+    alignItems: 'center',
+    marginRight: width * 0.02,
+  },
   viewLostDogsText: {
-    color: colors.white,
-    fontWeight: '600',
-    marginLeft: 10,
-    fontSize: 16,
+    color: 'white',
+    fontSize: normalize(14),
+    fontWeight: 'bold',
   },
   deviceInfoContainer: {
     marginTop: 10,
@@ -3188,7 +3247,7 @@ const styles = StyleSheet.create({
     paddingVertical: height * 0.01,
     paddingHorizontal: width * 0.05,
     borderRadius: width * 0.06,
-    marginTop: height * 0.02,
+    marginTop: height * 0.01, // Reduced from 0.02 to position it higher
     width: '50%',
     alignSelf: 'center',
   },

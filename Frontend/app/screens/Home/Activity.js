@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRouter } from 'expo-router';
 import colors from '../../constants/colors';
@@ -233,45 +233,43 @@ const fetchWalkData = async (deviceId) => {
       recentWalks = [data.activeWalk, ...recentWalks];
     }
 
-    // Enrich walks with fallback endTime & duration
-    const enrichedWalks = recentWalks.map((walk) => {
-      if (!walk || !walk.coordinates || walk.coordinates.length === 0) return null;
 
-      // Set fallback endTime if missing
-      if (!walk.endTime) {
-        walk.endTime = walk.coordinates[walk.coordinates.length - 1].timestamp;
-      }
+const enrichedWalks = recentWalks.map((walk) => {
+  if (!walk || !walk.coordinates || walk.coordinates.length === 0) return null;
 
-      // Calculate duration if missing
-      if (!walk.duration && walk.coordinates.length > 1) {
-        const start = new Date(walk.coordinates[0].timestamp);
-        const end = new Date(walk.coordinates[walk.coordinates.length - 1].timestamp);
-        walk.duration = Math.round((end - start) / 60000); // minutes
-      }
+  // Set fallback endTime if missing
+  if (!walk.endTime) {
+    walk.endTime = walk.coordinates[walk.coordinates.length - 1].timestamp;
+  }
 
-      // Make sure endTime is a Date object
-      walk.endTime = new Date(walk.endTime);
+  // Recalculate duration based on endTime and startTime
+  const start = new Date(walk.startTime || walk.coordinates[0].timestamp);
+  const end = new Date(walk.endTime || walk.coordinates[walk.coordinates.length - 1].timestamp);
+  
+  // Calculate duration in milliseconds, then convert to minutes
+  const durationMs = end - start;
+  walk.duration = Math.round(durationMs / 60000); // Convert to minutes
+  
+  console.log(`Walk duration recalculated: ${walk.duration} minutes (from ${start.toISOString()} to ${end.toISOString()})`);
 
-      return walk;
-    }).filter(Boolean); // Remove any nulls
+  walk.endTime = new Date(walk.endTime);
 
-    // Sort walks by most recent end time
+  return walk;
+}).filter(Boolean);
+
+
     const sortedWalks = enrichedWalks.sort((a, b) => b.endTime - a.endTime);
 
-    // Pick the latest walk (active or finished)
+  
     const mostRecentWalk = sortedWalks[0];
 
-    // Update state
     setRecentWalks(sortedWalks);
     setSelectedWalk(mostRecentWalk);
-    // Update state
+
 
     await calculateActivityStats(sortedWalks, data.activeWalk);
 
 
-    // Optional: recalculate stats (if you want)
-    // await calculateActivityStats(sortedWalks, data.activeWalk);
-    // 📢 Log how many walks
   console.log(`🦮 Total Walks: ${sortedWalks.length}`);
 
   sortedWalks.forEach((walk, index) => {
@@ -512,7 +510,14 @@ const fetchWalkData = async (deviceId) => {
   };
 
   const formatDuration = (minutes) => {
-    if (!minutes) return '0m';
+    if (!minutes && minutes !== 0) return '0m';
+    
+    // Handle negative duration (which shouldn't happen with correct timestamps)
+    if (minutes < 0) {
+      console.warn(`Negative duration detected: ${minutes} minutes`);
+      minutes = Math.abs(minutes);
+    }
+    
     const hrs = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
@@ -542,23 +547,39 @@ const fetchWalkData = async (deviceId) => {
   };
   const calculateBarHeights = (walks) => {
     const hourlyActivity = new Array(24).fill(0);
-  
-    walks.forEach((walk) => {
-      if (walk.coordinates && walk.coordinates.length > 0) {
-        const startTime = new Date(walk.coordinates[0].timestamp);
-        const endTime = new Date(walk.coordinates[walk.coordinates.length - 1].timestamp);
-  
-        const startHour = startTime.getHours();
-        const endHour = endTime.getHours();
-        const duration = (endTime - startTime) / 60000; // in minutes
-  
-        for (let hour = startHour; hour <= endHour; hour++) {
-          hourlyActivity[hour] += duration / (endHour - startHour + 1);
-        }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Filter today's walks
+    const todayWalks = walks.filter((walk) => {
+      if (!walk || !walk.coordinates || walk.coordinates.length === 0) return false;
+      const walkDate = new Date(walk.coordinates[0].timestamp);
+      walkDate.setHours(0, 0, 0, 0);
+      return walkDate.getTime() === today.getTime();
+    });
+
+    todayWalks.forEach((walk) => {
+      if (!walk.coordinates || walk.coordinates.length < 2) return;
+      
+      // Analyze each coordinate point to determine when the animal was active
+      for (let i = 1; i < walk.coordinates.length; i++) {
+        const prevPoint = new Date(walk.coordinates[i-1].timestamp);
+        const currentPoint = new Date(walk.coordinates[i].timestamp);
+        
+        // Calculate time difference in minutes between consecutive points
+        const timeDiff = (currentPoint - prevPoint) / 60000;
+        
+        // If points are too far apart in time (>15 min gap), don't count as continuous activity
+        if (timeDiff > 15) continue;
+        
+        // Add activity to the specific hour
+        const hour = prevPoint.getHours();
+        hourlyActivity[hour] += timeDiff;
       }
     });
-  
-    return hourlyActivity.map((minutes, hour) => ({ hour, minutes })).filter(item => item.minutes > 0);
+
+    // Return only hours with activity
+    return hourlyActivity.map((minutes, hour) => ({ hour, minutes }));
   };
   
   // Check if there's any activity today
@@ -699,19 +720,25 @@ const fetchWalkData = async (deviceId) => {
                 <View>
                   {/* Bar Graph Row */}
                   <View style={styles.barGraphRow}>
-                    {[...Array(24).keys()].map((hour) => {
-                      const bar = calculateBarHeights(recentWalks).find((item) => item.hour === hour);
-                      return (
-                        <View key={hour} style={styles.barColumn}>
-                          <View
-                            style={[
-                              styles.bar,
-                              { height: bar ? Math.min(80, bar.minutes * 2) : 0 }
-                            ]}
-                          />
-                        </View>
-                      );
-                    })}
+                    {(() => {
+                      const hourlyActivities = calculateBarHeights(recentWalks);
+                      return [...Array(24).keys()].map((hour) => {
+                        const activity = hourlyActivities.find(item => item.hour === hour);
+                        const minutes = activity ? activity.minutes : 0;
+                        const barHeight = minutes > 0 ? Math.min(80, minutes * 2) : 0;
+                        
+                        return (
+                          <View key={hour} style={styles.barColumn}>
+                            <View
+                              style={[
+                                styles.bar,
+                                { height: barHeight, opacity: barHeight > 0 ? 1 : 0.2 }
+                              ]}
+                            />
+                          </View>
+                        );
+                      });
+                    })()}
                   </View>
 
                   {/* Axis Line & Labels */}
@@ -1282,6 +1309,12 @@ const styles = StyleSheet.create({
     fontSize: normalize(16),
     color: colors.black,
     textAlign: 'center',
+  },
+  barGraphTitle: {
+    fontSize: normalize(18),
+    fontWeight: '600',
+    color: colors.black,
+    marginBottom: height * 0.012,
   },
 });
 

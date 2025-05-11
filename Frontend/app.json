@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "MyBachelor",
-    "slug": "MyBachelor",
-    "scheme": "myapp",
+    "name": "Peti",
+    "slug": "Peti",
+    "scheme": "Peti",
     "version": "1.0.0",
     "newArchEnabled": true,
     "android": {
-      "package": "com.mybachelor.app",
+      "package": "com.peti.app",
       "permissions": [
         "CAMERA"
       ],

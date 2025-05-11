@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellow,
     paddingVertical: height * 0.02,
     paddingHorizontal: width * 0.05,
-    paddingTop: Platform.OS === 'ios' ? height * 0.04 : height * 0.02,
+    paddingTop: Platform.OS === 'ios' ? height * 0.08 : height * 0.06,
     alignItems: 'center',
   },
   headerTitle: {

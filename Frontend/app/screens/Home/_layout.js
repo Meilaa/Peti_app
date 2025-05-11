@@ -14,7 +14,7 @@ export default function _Layout() {
         tabBarActiveTintColor: colors.yellow, // Set the active tab label color to yellow
         tabBarLabelStyle: { fontSize: 8, marginBottom: 2 }, // Make labels smaller with less bottom margin
         tabBarItemStyle: { paddingHorizontal: 0 }, // Remove horizontal padding completely
-        tabBarStyle: { height: 58, paddingBottom: 5 }, // Make tab bar taller for better visibility
+        tabBarStyle: { height: 80, paddingBottom: 30 }, // Make tab bar taller for better visibility
       }}
     >
       <Tabs.Screen 
