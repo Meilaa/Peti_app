@@ -12,25 +12,21 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import colors from '../../constants/colors';
 import environments from '../../constants/enviroments';
-import moment from 'moment'; // Add moment for date formatting
+import moment from 'moment';
 
-// Get screen dimensions for responsive design
 const { width, height } = Dimensions.get('window');
 
-// Responsive font size function (reused from other screens)
 const normalize = (size) => {
-  const scale = width / 375; // 375 is standard iPhone width
-  const newSize = size * scale;
-  return Math.round(newSize);
+  const scale = width / 375;
+  return Math.round(size * scale);
 };
 
-// Payment options
 const paymentOptions = [
   {
     id: 'basic',
@@ -44,8 +40,8 @@ const paymentOptions = [
     ],
     icon: 'paw',
     color: colors.yellow,
-    currency: 'eur', // Changed to euros
-    currencySymbol: '€' // Added euro symbol
+    currency: 'eur',
+    currencySymbol: '€'
   }
 ];
 
@@ -55,67 +51,35 @@ export default function Payment() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [trialDaysUsed, setTrialDaysUsed] = useState(0);
   const [subscription, setSubscription] = useState(null);
-  const [subscriptionData, setSubscriptionData] = useState(null);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
   const [formattedRenewalDate, setFormattedRenewalDate] = useState('Not available');
-  const { initPaymentSheet, presentPaymentSheet, confirmPayment } = useStripe();
-  const stripe = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const router = useRouter();
 
-  // Calculate trial days used when component mounts
+  const handleSelectPlan = (plan) => {
+    setSelectedPlan(plan);
+  };
+
   useEffect(() => {
     const initialize = async () => {
       await calculateTrialDaysUsed();
-      await ensureStripeInitialized();
-      const userSubscription = await checkSubscriptionStatus();
-      
+      await fetchSubscription();
       setLoading(false);
-      if (userSubscription) {
-        console.log('Current subscription:', userSubscription);
-        setSubscription(userSubscription);
-        
-        // Format the renewal date
-        updateFormattedRenewalDate(userSubscription);
-        
-        // User has an active subscription
-        if (userSubscription.status === 'active') {
-          console.log('User has active subscription');
-        }
-      } else {
-        // No subscription found - this is normal for new users
-        console.log('No active subscription - user needs to subscribe');
-      }
     };
     
     initialize();
   }, []);
 
-  // Function to ensure Stripe is initialized
-  const ensureStripeInitialized = async () => {
-    try {
-      console.log('Making sure Stripe is initialized...');
-      // Add any specific Stripe initialization logic if needed
-      console.log('Stripe availability check completed');
-    } catch (error) {
-      console.error('Error initializing Stripe:', error);
-      Alert.alert('Stripe Error', 'Could not initialize payment system. Please try again later.');
-      throw error; // Re-throw to handle in the calling function
-    }
-  };
-
   const calculateTrialDaysUsed = async () => {
     try {
       const firstOpenTimestamp = await AsyncStorage.getItem('firstOpenTimestamp');
-      
       if (firstOpenTimestamp) {
-        const startDate = new Date(parseInt(firstOpenTimestamp));
-        const currentDate = new Date();
-        
-        // Calculate days difference
-        const diffTime = Math.abs(currentDate - startDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+        const diffDays = moment().diff(moment(parseInt(firstOpenTimestamp)), 'days');
         setTrialDaysUsed(diffDays);
+      } else {
+        const timestamp = Date.now();
+        await AsyncStorage.setItem('firstOpenTimestamp', timestamp.toString());
+        setTrialDaysUsed(0);
       }
     } catch (error) {
       console.error('Error calculating trial days:', error);
@@ -126,366 +90,388 @@ export default function Payment() {
     return await AsyncStorage.getItem('authToken') || await AsyncStorage.getItem('userToken');
   };
 
-  // Helper function to safely parse JSON responses
-  const safelyParseJson = async (response) => {
-    const text = await response.text();
+  const fetchSubscription = async () => {
     try {
-      // Try to parse as JSON
-      return JSON.parse(text);
-    } catch (error) {
-      // If it's not valid JSON, log and throw an error with more information
-      console.error('Error parsing JSON response:', error);
-      console.error('Response status:', response.status);
-      console.error('Response text:', text.substring(0, 500) + (text.length > 500 ? '...' : ''));
-      
-      if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-        throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
-      } else {
-        throw new Error(`Invalid JSON response. Status: ${response.status}`);
-      }
-    }
-  };
-
-// In your React Native application:
-
-const initializePayment = async () => {
-  if (!selectedPlan) {
-    Alert.alert('Error', 'Please select a plan first');
-    return;
-  }
-  setProcessingPayment(true);
-  try {
-    const token = await getAuthToken();
-    if (!token) throw new Error('Authentication required');
-    
-    console.log('Starting payment process for', selectedPlan.name);
-    
-    // Step 1: Create customer if needed
-    const customerResponse = await fetch(`${environments.API_BASE_URL}/api/create-customer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (!customerResponse.ok) {
-      throw new Error(`Failed to create customer: ${customerResponse.status}`);
-    }
-    
-    const customerData = await safelyParseJson(customerResponse);
-    console.log('Customer ID:', customerData.customerId);
-    
-    // Step 2: Get payment sheet parameters
-    const paymentSheetResponse = await fetch(`${environments.API_BASE_URL}/api/create-payment-sheet`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        amount: Math.round(selectedPlan.price * 100),
-        currency: selectedPlan.currency
-      })
-    });
-    
-    if (!paymentSheetResponse.ok) {
-      throw new Error(`Failed to create payment sheet: ${paymentSheetResponse.status}`);
-    }
-    
-    const { paymentIntent, ephemeralKey, customer } = await safelyParseJson(paymentSheetResponse);
-    
-    // Step 3: Initialize payment sheet
-    const { error: initError } = await initPaymentSheet({
-      paymentIntentClientSecret: paymentIntent,
-      customerEphemeralKeySecret: ephemeralKey,
-      customerId: customer,
-      merchantDisplayName: 'Peti Pet Tracking'
-    });
-    
-    if (initError) {
-      throw new Error(`Payment sheet initialization error: ${initError.message}`);
-    }
-    
-    // Step 4: Present payment sheet
-    const { error: presentError } = await presentPaymentSheet();
-    
-    if (presentError) {
-      if (presentError.code === 'Canceled') {
-        Alert.alert('Payment Cancelled', 'You cancelled the payment process.');
+      const token = await getAuthToken();
+      if (!token) return;
+  
+      const response = await fetch(`${environments.API_BASE_URL}/api/stripe/subscription`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+  
+      if (response.status === 404) {
+        setSubscription(null);
         return;
       }
-      throw new Error(`Payment sheet error: ${presentError.message}`);
-    }
-    
-    console.log('Payment successful! Creating subscription from payment...');
-    
-    // Extract the payment intent ID from client secret
-    // The pattern is typically: pi_123456789_secret_987654321
-    const paymentIntentId = paymentIntent.split('_secret_')[0];
-    console.log('Payment Intent ID:', paymentIntentId);
-    
-    // Step 5: Create subscription from successful payment
-    const subscriptionResponse = await fetch(`${environments.API_BASE_URL}/api/create-subscription-from-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        paymentIntentId: paymentIntentId
-      })
-    });
-    
-    if (!subscriptionResponse.ok) {
-      throw new Error(`Failed to create subscription: ${subscriptionResponse.status}`);
-    }
-    
-    const subscriptionData = await safelyParseJson(subscriptionResponse);
-    console.log('Subscription created successfully:', subscriptionData);
-    
-    // Step 6: Verify subscription status
-    if (subscriptionData.status === 'active') {
-      Alert.alert('Subscription Active', 'Your subscription is now active!');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get subscription status');
+      }
+  
+      const subscriptionData = await response.json();
+      console.log('Received subscription data:', subscriptionData);
+      
+      if (!subscriptionData || !subscriptionData.subscriptionId) {
+        setSubscription(null);
+        return;
+      }
+  
       setSubscription(subscriptionData);
-      
-      // Store subscription in AsyncStorage
-      await AsyncStorage.setItem('subscription', JSON.stringify({
-        id: subscriptionData.subscriptionId,
-        status: subscriptionData.status,
-        currentPeriodEnd: subscriptionData.currentPeriodEnd
-      }));
-      
-      // Refresh subscription status
-      refreshSubscriptionStatus();
-    } else {
-      throw new Error(`Subscription not active. Status: ${subscriptionData.status}`);
-    }
-  } catch (error) {
-    console.error('Payment process error:', error);
-    Alert.alert('Error', error.message);
-  } finally {
-    setProcessingPayment(false);
-  }
-};
-  const handlePaymentCompletion = async ({ error, subscription }) => {
-    if (error) {
-      Alert.alert('Payment Failed', error.message);
-      return;
-    }
-  
-    try {
-      // Store subscription details in AsyncStorage
-      await AsyncStorage.setItem('subscription', JSON.stringify({
-        plan: selectedPlan.id,
-        price: selectedPlan.price,
-        currency: selectedPlan.currency,
-        status: 'active',
-        currentPeriodEnd: subscription?.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      }));
-  
-      // Remove alert and directly refresh subscription info
-      refreshSubscriptionStatus();
+      updateFormattedRenewalDate(subscriptionData);
+      await AsyncStorage.setItem('subscription', JSON.stringify(subscriptionData));
     } catch (error) {
-      console.error('Error saving subscription:', error);
-      Alert.alert('Error', 'Your payment was successful, but there was an error saving your subscription. Please contact support.');
+      console.error('Error fetching subscription:', error);
+      setSubscription(null);
     }
-  };
-  
-  const handleSelectPlan = (plan) => {
-    setSelectedPlan(plan);
-    // Don't navigate away, just select the plan
   };
 
-  const checkSubscriptionStatus = async () => {
+  const initializePayment = async () => {
+    if (!selectedPlan) {
+      Alert.alert('Error', 'Please select a plan first');
+      return;
+    }
+    
+    setProcessingPayment(true);
     try {
       const token = await getAuthToken();
       if (!token) {
-        console.log('No auth token found');
-        return null;
+        throw new Error('Authentication required');
       }
 
-      console.log('Checking subscription status...');
-      const response = await fetch(`${environments.API_BASE_URL}/api/subscription`, {
+      // First create or get customer
+      const customerResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-customer`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (response.status === 404) {
-        // No subscription found - this is a normal case for new users
-        console.log('No active subscription found - user needs to subscribe');
-        return null;
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json();
+        throw new Error(errorData.error || 'Customer setup failed');
       }
 
-      if (!response.ok) {
-        const errorData = await safelyParseJson(response);
-        console.error('Subscription status error:', errorData);
-        throw new Error(errorData.error || 'Failed to get subscription status');
+      const customerData = await customerResponse.json();
+      console.log('Customer data:', customerData);
+      
+      if (!customerData.customerId) {
+        throw new Error('No customer ID received from server');
       }
 
-      const data = await safelyParseJson(response);
-      console.log('Subscription status response:', data);
-      return data;
+      // Create payment sheet
+      const paymentSheetResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-payment-sheet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: Math.round(selectedPlan.price * 100),
+          currency: selectedPlan.currency
+        })
+      });
+
+      if (!paymentSheetResponse.ok) {
+        const errorData = await paymentSheetResponse.json();
+        throw new Error(errorData.error || 'Payment setup failed');
+      }
+
+      const paymentSheetData = await paymentSheetResponse.json();
+      console.log('Payment sheet data:', paymentSheetData);
+      
+      const { paymentIntent, ephemeralKey, customer } = paymentSheetData;
+
+      if (!paymentIntent || !ephemeralKey || !customer) {
+        throw new Error('Missing required payment sheet data');
+      }
+
+      const { error: initError } = await initPaymentSheet({
+        paymentIntentClientSecret: paymentIntent,
+        customerEphemeralKeySecret: ephemeralKey,
+        customerId: customer,
+        merchantDisplayName: 'Peti Pet Tracking',
+        style: 'automatic',
+        googlePay: {
+          merchantCountryCode: 'US',
+          testEnv: __DEV__,
+        },
+        applePay: {
+          merchantCountryCode: 'US',
+        },
+      });
+
+      if (initError) {
+        throw new Error(initError.message);
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+      
+      if (presentError) {
+        if (presentError.code === 'Canceled') {
+          setProcessingPayment(false);
+          return;
+        }
+        throw new Error(presentError.message);
+      }
+      
+      // Payment successful, now create subscription
+      const subscriptionResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          customerId: customer
+        })
+      });
+
+      console.log('Subscription response status:', subscriptionResponse.status);
+      const responseText = await subscriptionResponse.text();
+      console.log('Raw subscription response:', responseText);
+
+      if (!subscriptionResponse.ok) {
+        let errorMessage = 'Subscription creation failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
+      }
+
+      let subscriptionData;
+      try {
+        subscriptionData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Error parsing subscription response:', e);
+        throw new Error('Invalid subscription data received');
+      }
+      
+      console.log('Parsed subscription data:', subscriptionData);
+      
+      // Validate subscription data
+      if (!subscriptionData || !subscriptionData.subscriptionId) {
+        throw new Error('Invalid subscription data received');
+      }
+
+      // Update local state and storage
+      setSubscription(subscriptionData);
+      updateFormattedRenewalDate(subscriptionData);
+      await AsyncStorage.setItem('subscription', JSON.stringify(subscriptionData));
+      
+      Alert.alert(
+        'Success', 
+        'Your premium subscription is now active! Enjoy all the premium features.'
+      );
+      
     } catch (error) {
-      // Only log as error if it's not the "no subscription" case
-      if (error.message !== 'No subscription found') {
-        console.error('Error checking subscription:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-      }
-      return null;
+      console.error('Payment error:', error);
+      Alert.alert('Error', error.message || 'An error occurred during payment');
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
-  // Add a function to check if user has an active subscription
-  const hasActiveSubscription = async () => {
-    const subscription = await checkSubscriptionStatus();
-    return subscription && subscription.status === 'active';
+  const updateFormattedRenewalDate = (sub) => {
+    if (!sub) return;
+    
+    let dateToFormat;
+    if (sub.status === 'trialing' && sub.trialEnd) {
+      dateToFormat = sub.trialEnd;
+    } else {
+      dateToFormat = sub.currentPeriodEnd;
+    }
+  
+    if (dateToFormat) {
+      try {
+        const formattedDate = moment(dateToFormat).format('MMMM D, YYYY');
+        setFormattedRenewalDate(formattedDate);
+      } catch (error) {
+        console.error('Error formatting date:', error);
+        setFormattedRenewalDate('Not available');
+      }
+    } else {
+      setFormattedRenewalDate('Not available');
+    }
   };
 
-  const refreshSubscriptionStatus = async () => {
-    setLoading(true);
-    const subscription = await checkSubscriptionStatus();
-    setSubscription(subscription);
-    setLoading(false);
-  };
-
-  const cancelSubscription = async (immediate = false) => {
+  const cancelTrial = async (subscriptionId) => {
     try {
-      if (!subscription || !subscription.subscriptionId) {
+      const token = await getAuthToken();
+      const response = await fetch(
+        `${environments.API_BASE_URL}/api/stripe/cancel-subscription/${subscriptionId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ immediate: true })
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to cancel subscription');
+      }
+
+      const result = await response.json();
+      console.log('Cancellation result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      throw error;
+    }
+  };
+
+  const cancelSubscription = async () => {
+    try {
+      if (!subscription?.subscriptionId) {
         throw new Error('No active subscription found');
       }
-
-      setCancelingSubscription(true);
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No auth token found');
-      }
-
-      // Show confirmation dialog
+  
+      const isTrial = subscription.status === 'trialing';
+      const endDate = subscription.currentPeriodEnd 
+        ? moment(subscription.currentPeriodEnd).format('MMMM D, YYYY')
+        : 'the end of the billing period';
+  
       Alert.alert(
-        immediate ? 'Cancel Subscription Immediately?' : 'Cancel Subscription?',
-        immediate 
-          ? 'Your subscription will be cancelled immediately and you will lose access to premium features.'
-          : 'Your subscription will be cancelled at the end of the current billing period. You will continue to have access until then.',
+        isTrial ? 'Cancel Trial?' : 'Cancel Subscription?',
+        isTrial 
+          ? 'Are you sure you want to cancel your trial? You will lose access to premium features immediately.'
+          : `Your subscription will be cancelled on ${endDate}. You'll still have access until then.`,
         [
-          {
-            text: 'No, Keep It',
-            style: 'cancel',
-            onPress: () => setCancelingSubscription(false)
+          { 
+            text: 'No, Keep It', 
+            style: 'cancel'
           },
           {
             text: 'Yes, Cancel',
             style: 'destructive',
             onPress: async () => {
-              console.log('Canceling subscription...');
-              const response = await fetch(
-                `${environments.API_BASE_URL}/api/cancel-subscription/${subscription.subscriptionId}`, 
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({ cancelImmediately: immediate })
-                }
-              );
-
-              if (!response.ok) {
-                const errorData = await safelyParseJson(response);
-                throw new Error(errorData.error || 'Failed to cancel subscription');
-              }
-
-              const data = await safelyParseJson(response);
-              console.log('Cancel subscription response:', data);
-              
-              // Update subscription state
-              if (immediate) {
-                setSubscription(null);
-                await AsyncStorage.removeItem('subscription');
-                Alert.alert('Subscription Cancelled', 'Your subscription has been cancelled. You no longer have access to premium features.');
-              } else {
-                const updatedSubscription = { 
-                  ...subscription,
-                  cancelAtPeriodEnd: true,
-                  status: data.status
-                };
-                setSubscription(updatedSubscription);
-                await AsyncStorage.setItem('subscription', JSON.stringify(updatedSubscription));
-                Alert.alert(
-                  'Subscription Will Cancel',
-                  `Your subscription will cancel on ${moment(data.currentPeriodEnd).format('MMMM D, YYYY')}. You will have access until then.`
+              try {
+                setCancelingSubscription(true);
+                const token = await getAuthToken();
+                
+                // Make sure to use the correct endpoint
+                const response = await fetch(
+                  `${environments.API_BASE_URL}/api/stripe/cancel-subscription`, 
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                      immediate: isTrial // Cancel immediately if it's a trial
+                    })
+                  }
                 );
+  
+                // First get the response text for debugging
+                const responseText = await response.text();
+                console.log('Raw response:', responseText);
+  
+                // Try to parse it as JSON
+                let responseData;
+                try {
+                  responseData = JSON.parse(responseText);
+                } catch (parseError) {
+                  console.error('Failed to parse response:', parseError);
+                  throw new Error('Invalid response from server');
+                }
+  
+                if (!response.ok) {
+                  throw new Error(responseData.error || 'Failed to cancel subscription');
+                }
+  
+                // Clear subscription data from AsyncStorage
+                await AsyncStorage.removeItem('subscription');
+                
+                // Update local state
+                setSubscription(null);
+                
+                Alert.alert(
+                  isTrial ? 'Trial Cancelled' : 'Subscription Cancelled', 
+                  isTrial 
+                    ? 'Your trial has been cancelled. You no longer have access to premium features.'
+                    : `Your subscription access will end on ${endDate}.`
+                );
+              } catch (error) {
+                console.error('Cancel subscription error:', error);
+                Alert.alert('Error', error.message || 'Failed to cancel subscription');
+              } finally {
+                setCancelingSubscription(false);
               }
-              
-              setCancelingSubscription(false);
             }
           }
         ]
       );
     } catch (error) {
-      console.error('Error canceling subscription:', error);
-      Alert.alert('Error', `Failed to cancel subscription: ${error.message}`);
+      console.error('Cancel subscription error:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
+    }
+  };
+
+  const resumeSubscription = async () => {
+    try {
+      if (!subscription?.subscriptionId || !subscription.cancelAtPeriodEnd) {
+        return;
+      }
+
+      setCancelingSubscription(true);
+      const token = await getAuthToken();
+      
+      const response = await fetch(
+        `${environments.API_BASE_URL}/api/stripe/resume-subscription`, 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ subscriptionId: subscription.subscriptionId })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to resume subscription');
+      }
+
+      await fetchSubscription(); // Refresh subscription data
+      Alert.alert('Success', 'Your subscription has been resumed.');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to resume subscription');
+    } finally {
       setCancelingSubscription(false);
     }
   };
 
-  // Helper to update the formatted renewal date
-  const updateFormattedRenewalDate = async (sub) => {
-    let renewalDate = sub?.currentPeriodEnd;
-    if (!renewalDate) {
-      // Try to get from AsyncStorage as fallback
-      try {
-        const storedSubscriptionStr = await AsyncStorage.getItem('subscription');
-        if (storedSubscriptionStr) {
-          const storedSubscription = JSON.parse(storedSubscriptionStr);
-          renewalDate = storedSubscription.currentPeriodEnd;
-        }
-      } catch (error) {
-        console.error('Error getting subscription from AsyncStorage:', error);
-      }
-    }
-    
-    // Format date with fallback
-    const formatted = renewalDate ? 
-      moment(renewalDate).format('MMMM D, YYYY') : 
-      'Not available';
-      
-    setFormattedRenewalDate(formatted);
-  };
-
-  // Render subscription info when user has an active subscription
   const renderSubscriptionInfo = () => {
     if (!subscription) return null;
 
-    const isActive = subscription.status === 'active';
-    const isIncomplete = subscription.status === 'incomplete';
-    const isExpired = subscription.status === 'incomplete_expired';
-    const willCancel = subscription.cancelAtPeriodEnd;
-    
-    // If subscription is expired, show restart option
-    if (isExpired) {
-      return (
-        <View style={styles.subscriptionInfoContainer}>
-          <View style={styles.subscriptionHeader}>
-            <FontAwesome5 name="exclamation-triangle" size={24} color="#f44336" />
-            <Text style={styles.subscriptionTitle}>Subscription Expired</Text>
-          </View>
-          
-          <Text style={styles.expiredText}>
-            Your subscription payment was not completed and has expired.
-            Please start a new subscription to access premium features.
-          </Text>
-          
-          <TouchableOpacity 
-            style={styles.startNewButton}
-            onPress={() => {
-              cleanupExpiredSubscriptions().then(() => {
-                setSelectedPlan(paymentOptions[0]);
-              });
-            }}
-          >
-            <Text style={styles.startNewButtonText}>Start New Subscription</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    
-    // Regular subscription display for active or other states
+    console.log('Rendering subscription info:', subscription);
+
+    const isCancelling = subscription.cancelAtPeriodEnd;
+    const isTrial = subscription.status === 'trialing';
+    const renewalDate = formattedRenewalDate === 'Not available' 
+      ? 'the end of the billing period' 
+      : formattedRenewalDate;
+
     return (
       <View style={styles.subscriptionInfoContainer}>
         <View style={styles.subscriptionHeader}>
@@ -493,12 +479,9 @@ const initializePayment = async () => {
           <Text style={styles.subscriptionTitle}>Your Premium Subscription</Text>
         </View>
         
-        <View style={[
-          styles.statusBadge, 
-          isIncomplete ? styles.incompleteBadge : (willCancel ? styles.cancellingBadge : styles.activeBadge)
-        ]}>
+        <View style={[styles.statusBadge, isCancelling ? styles.cancellingBadge : styles.activeBadge]}>
           <Text style={styles.statusBadgeText}>
-            {isIncomplete ? 'Payment Required' : (willCancel ? 'Cancels Soon' : (isActive ? 'Active' : subscription.status))}
+            {isCancelling ? 'Cancelling' : isTrial ? 'Trial' : 'Active'}
           </Text>
         </View>
         
@@ -509,249 +492,42 @@ const initializePayment = async () => {
           </View>
           
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>{willCancel ? 'Access Until:' : 'Next Renewal:'}</Text>
-            <Text style={styles.detailValue}>{formattedRenewalDate}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Status:</Text>
-            <Text style={[
-              styles.detailValue, 
-              { color: isIncomplete ? '#ff5722' : (willCancel ? '#ff9800' : (isActive ? '#4caf50' : '#f44336')) }
-            ]}>
-              {isIncomplete ? 'Payment Needed' : (willCancel ? 'Cancels at period end' : (isActive ? 'Active' : subscription.status))}
+            <Text style={styles.detailLabel}>
+              {isTrial ? 'Trial Ends:' : isCancelling ? 'Access Until:' : 'Next Renewal:'}
             </Text>
+            <Text style={styles.detailValue}>{renewalDate}</Text>
           </View>
         </View>
-        
-        {isIncomplete && (
-          <View style={styles.managementButtons}>
-            <TouchableOpacity 
-              style={styles.completePaymentButton}
-              onPress={() => completeSubscription()}
-              disabled={processingPayment}
-            >
-              {processingPayment ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.completePaymentText}>Complete Payment</Text>
-              )}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelImmediateButton}
-              onPress={() => cancelSubscription(true)}
-              disabled={cancelingSubscription}
-            >
-              {cancelingSubscription ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.cancelImmediateButtonText}>Cancel Subscription</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {!isIncomplete && !willCancel && (
-          <View style={styles.managementButtons}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={() => cancelSubscription(false)}
-              disabled={cancelingSubscription}
-            >
-              {cancelingSubscription ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.cancelButtonText}>Cancel at Period End</Text>
-              )}
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelImmediateButton}
-              onPress={() => cancelSubscription(true)}
-              disabled={cancelingSubscription}
-            >
-              {cancelingSubscription ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.cancelImmediateButtonText}>Cancel Immediately</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {willCancel && (
-          <View style={styles.renewContainer}>
-            <Text style={styles.renewText}>
-              Your subscription will end on {formattedRenewalDate}. 
-              You will lose access to premium features after this date.
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.resubscribeButton}
-              onPress={() => refreshSubscriptionStatus()}
-            >
-              <Text style={styles.resubscribeButtonText}>Refresh Status</Text>
-            </TouchableOpacity>
-          </View>
+
+        {isCancelling ? (
+          <TouchableOpacity 
+            style={styles.resumeButton}
+            onPress={resumeSubscription}
+            disabled={cancelingSubscription}
+          >
+            {cancelingSubscription ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.resumeButtonText}>Resume Subscription</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.cancelButton}
+            onPress={cancelSubscription}
+            disabled={cancelingSubscription}
+          >
+            {cancelingSubscription ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.cancelButtonText}>
+                {isTrial ? 'Cancel Trial' : 'Cancel Subscription'}
+              </Text>
+            )}
+          </TouchableOpacity>
         )}
       </View>
     );
-  };
-// Add this function to your component
-const cleanupExpiredSubscriptions = async () => {
-  try {
-    const token = await getAuthToken();
-    const subscription = await checkSubscriptionStatus();
-    
-    // If we have an expired or incomplete subscription, cancel it
-    if (subscription && 
-        (subscription.status === 'incomplete' || 
-         subscription.status === 'incomplete_expired')) {
-      
-      console.log('Cleaning up expired subscription:', subscription.subscriptionId);
-      
-      await fetch(
-        `${environments.API_BASE_URL}/api/cancel-subscription/${subscription.subscriptionId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ cancelImmediately: true })
-        }
-      );
-      
-      // Clear local subscription data
-      await AsyncStorage.removeItem('subscription');
-      setSubscription(null);
-      
-      console.log('Expired subscription cleaned up');
-    }
-  } catch (error) {
-    console.error('Error cleaning up subscription:', error);
-  }
-};
-
-// Call this in useEffect when component mounts:
-useEffect(() => {
-  const initialize = async () => {
-    await calculateTrialDaysUsed();
-    await ensureStripeInitialized();
-    await cleanupExpiredSubscriptions(); // Add this line
-    const userSubscription = await checkSubscriptionStatus();
-    
-    setLoading(false);
-    if (userSubscription) {
-      console.log('Current subscription:', userSubscription);
-      setSubscription(userSubscription);
-    }
-  };
-  
-  initialize();
-}, []);
-  // Add this function to complete an incomplete subscription
-  const completeSubscription = async () => {
-    try {
-      setProcessingPayment(true);
-      const token = await getAuthToken();
-      
-      if (!subscription || !subscription.subscriptionId) {
-        throw new Error('No valid subscription information found');
-      }
-
-      // Create a new payment sheet for the subscription completion
-      const paymentResponse = await fetch(`${environments.API_BASE_URL}/api/create-subscription-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          subscriptionId: subscription.subscriptionId,
-          amount: 499, // Fixed amount of 4.99 EUR in cents
-          currency: 'eur'
-        })
-      });
-
-      if (!paymentResponse.ok) {
-        const errorText = await paymentResponse.text();
-        console.error('Payment creation failed. Status:', paymentResponse.status);
-        console.error('Response:', errorText.substring(0, 500));
-        throw new Error(`Failed to create payment. Status: ${paymentResponse.status}`);
-      }
-
-      const paymentData = await safelyParseJson(paymentResponse);
-      
-      // Initialize the payment sheet
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: paymentData.paymentIntent,
-        customerEphemeralKeySecret: paymentData.ephemeralKey,
-        customerId: paymentData.customer,
-        merchantDisplayName: 'Peti Pet Tracking',
-        style: 'automatic',
-        appearance: {
-          colors: { primary: colors.yellow },
-          shapes: { borderRadius: 8 },
-          primaryButton: { shapes: { borderRadius: 8 } },
-        },
-      });
-      
-      if (initError) {
-        console.error('Payment sheet initialization error:', initError);
-        throw new Error(initError.message);
-      }
-      
-      // Present the payment sheet
-      const { error: presentError, paymentOption } = await presentPaymentSheet();
-      
-      if (presentError) {
-        if (presentError.code === 'Canceled') {
-          console.log('Payment cancelled by user');
-          throw new Error('Payment process was cancelled');
-        } else {
-          console.error('Payment sheet presentation error:', presentError);
-          throw new Error(presentError.message);
-        }
-      }
-      
-      // Payment was successful, now activate the subscription
-      const paymentMethodId = paymentOption?.paymentMethodId;
-      const paymentIntentId = paymentData.paymentIntentId;
-      
-      console.log('Payment successful! Activating subscription...');
-      
-      const confirmResponse = await fetch(`${environments.API_BASE_URL}/api/activate-subscription-with-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          subscriptionId: subscription.subscriptionId,
-          paymentMethodId: paymentMethodId,
-          paymentIntentId: paymentIntentId
-        })
-      });
-      
-      if (!confirmResponse.ok) {
-        const errorText = await confirmResponse.text();
-        console.error('Subscription activation failed. Status:', confirmResponse.status);
-        console.error('Response:', errorText.substring(0, 500));
-        throw new Error(`Failed to activate subscription. Status: ${confirmResponse.status}`);
-      }
-      
-      const confirmedData = await safelyParseJson(confirmResponse);
-      setSubscription(confirmedData);
-      
-      if (confirmedData.status === 'active') {
-        Alert.alert('Success', 'Your subscription is now active!');
-      }
-      
-      // Refresh subscription data
-      await refreshSubscriptionStatus();
-      
-    } catch (error) {
-      console.error('Error completing subscription:', error);
-      Alert.alert('Error', 'Failed to complete subscription: ' + error.message);
-    } finally {
-      setProcessingPayment(false);
-    }
   };
 
   return (
@@ -762,7 +538,7 @@ useEffect(() => {
       <StatusBar style="dark" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={normalize(24)} color={colors.white} />
+          <Ionicons name="chevron-back" size={24} color={colors.white} />
         </TouchableOpacity>
       </View>
       <Text style={styles.header2}>Premium Subscription</Text>
@@ -775,22 +551,11 @@ useEffect(() => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.yellow} />
-            <Text style={styles.loadingText}>Loading subscription details...</Text>
           </View>
-        ) : subscription ? (
-          // Show subscription info when user has one
+        ) : subscription && subscription.active ? (
           renderSubscriptionInfo()
         ) : (
-          // Show subscription purchase UI when user doesn't have one
           <>
-            <View style={styles.trialInfoContainer}>
-              <FontAwesome5 name="info-circle" size={20} color={colors.yellow} />
-              <Text style={styles.trialInfoText}>
-                {trialDaysUsed >= 14
-                  ? 'Your 14-day free trial has ended. Subscribe to continue enjoying premium features.'
-                  : `You have ${14 - trialDaysUsed} days left in your free trial.`}
-              </Text>
-            </View>
 
             <Text style={styles.sectionTitle}>Choose Your Plan</Text>
             <Text style={styles.sectionSubtitle}>Select the plan that best fits your needs</Text>
@@ -810,7 +575,9 @@ useEffect(() => {
                   </View>
                   <View style={styles.planTitleContainer}>
                     <Text style={styles.planName}>{plan.name}</Text>
-                    <Text style={styles.planPrice}>{plan.currencySymbol}{plan.price.toFixed(2)} {plan.currency.toUpperCase()}/month</Text>
+                    <Text style={styles.planPrice}>
+                      {plan.currencySymbol}{plan.price.toFixed(2)} {plan.currency.toUpperCase()}/month
+                    </Text>
                   </View>
                 </View>
                 
@@ -823,6 +590,10 @@ useEffect(() => {
                       <Text style={styles.featureText}>{feature}</Text>
                     </View>
                   ))}
+                </View>
+
+                <View style={styles.trialBadge}>
+                  <Text style={styles.trialBadgeText}>Includes 14-day free trial</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -844,10 +615,15 @@ useEffect(() => {
                   ) : (
                     <>
                       <FontAwesome5 name="credit-card" size={16} color="white" style={styles.buttonIcon} />
-                      <Text style={styles.payButtonText}>Pay Now</Text>
+                      <Text style={styles.payButtonText}>Subscribe Now</Text>
                     </>
                   )}
                 </TouchableOpacity>
+                
+                <Text style={styles.disclaimerText}>
+                  By subscribing, you agree to our Terms of Service and Privacy Policy. 
+                  You can cancel anytime.
+                </Text>
               </View>
             )}
           </>
@@ -874,7 +650,7 @@ const styles = StyleSheet.create({
     fontSize: normalize(26),
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: height * 0.025,
+    marginBottom: height * 0.005,
     marginTop: height * 0.02,
   },
   content: {
@@ -882,18 +658,20 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: width * 0.05,
-    paddingBottom: height * 0.05,
+    paddingBottom: height * 0.03,
   },
   sectionTitle: {
     fontSize: normalize(22),
     fontWeight: 'bold',
-    color: colors.black,
+    color: colors.white,
     marginBottom: height * 0.01,
+    textAlign: 'center',
   },
   sectionSubtitle: {
     fontSize: normalize(14),
     color: colors.grey,
     marginBottom: height * 0.03,
+    textAlign: 'center',
   },
   planCard: {
     backgroundColor: colors.white,
@@ -948,6 +726,7 @@ const styles = StyleSheet.create({
   },
   planFeatures: {
     marginTop: height * 0.01,
+    marginBottom: height * 0.02,
   },
   featureItem: {
     flexDirection: 'row',
@@ -958,6 +737,19 @@ const styles = StyleSheet.create({
     fontSize: normalize(14),
     color: colors.black,
     marginLeft: width * 0.02,
+  },
+  trialBadge: {
+    backgroundColor: '#e6f7ed', 
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  trialBadgeText: {
+    fontSize: normalize(12),
+    color: '#2a6e51',
+    fontWeight: '500',
   },
   paymentSection: {
     marginTop: 20,
@@ -993,6 +785,12 @@ const styles = StyleSheet.create({
     fontSize: normalize(16),
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  disclaimerText: {
+    fontSize: normalize(12),
+    color: colors.lightGrey,
+    textAlign: 'center',
+    marginTop: 12,
   },
   buttonIcon: {
     marginRight: 8,
@@ -1091,96 +889,52 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontWeight: '600',
   },
-  managementButtons: {
-    marginTop: height * 0.02,
-  },
   cancelButton: {
-    backgroundColor: colors.darkGrey,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.black,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginTop: 15,
+    width: '100%',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   cancelButtonText: {
     color: colors.white,
-    fontSize: normalize(16),
+    fontSize: normalize(15),
     fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  cancelImmediateButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#f44336',
-  },
-  cancelImmediateButtonText: {
-    color: '#f44336',
-    fontSize: normalize(16),
-    fontWeight: '600',
-  },
-  renewContainer: {
-    marginTop: height * 0.02,
-    alignItems: 'center',
-  },
-  renewText: {
-    fontSize: normalize(14),
-    color: '#ff9800',
-    textAlign: 'center',
-    marginBottom: height * 0.02,
-  },
-  resubscribeButton: {
+  resumeButton: {
     backgroundColor: colors.yellow,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 15,
     width: '100%',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  resubscribeButtonText: {
+  resumeButtonText: {
     color: colors.black,
     fontSize: normalize(16),
-    fontWeight: '600',
-  },
-  completePaymentButton: {
-    backgroundColor: colors.yellow,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: height * 0.02,
-    marginBottom: 10,
-    width: '100%',
-  },
-  completePaymentText: {
-    color: colors.black,
-    fontSize: normalize(16),
-    fontWeight: '600',
-  },
-  expiredText: {
-    fontSize: normalize(14),
-    color: '#f44336',
-    textAlign: 'center',
-    marginVertical: height * 0.02,
-  },
-  startNewButton: {
-    backgroundColor: colors.yellow,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  startNewButtonText: {
-    color: colors.black,
-    fontSize: normalize(16),
-    fontWeight: '600',
-  },
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  }
 });

@@ -4,6 +4,7 @@
     "slug": "Peti",
     "scheme": "Peti",
     "version": "1.0.0",
+    "icon": "./assets/images/main-logo.png",
     "newArchEnabled": true,
     "android": {
       "package": "com.peti.app",
