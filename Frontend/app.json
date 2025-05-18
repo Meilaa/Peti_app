@@ -2,9 +2,9 @@
   "expo": {
     "name": "Peti",
     "slug": "Peti",
-    "scheme": "Peti",
+    "scheme": "peti",
     "version": "1.0.0",
-    "icon": "./assets/images/main-logo.png",
+    "icon": "./assets/images/playstore-icon.png",
     "newArchEnabled": true,
     "android": {
       "package": "com.peti.app",

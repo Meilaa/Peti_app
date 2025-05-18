@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Peti",
-    "slug": "peti",
+    "slug": "peti-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/playstore-icon.png",
@@ -15,6 +15,7 @@
       "**/*"
     ],
     "ios": {
+      "scheme": ["peti"],
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "We need access to your camera to scan barcodes.",
@@ -23,6 +24,7 @@
       "bundleIdentifier": "Peti.lt"
     },
     "android": {
+      "scheme": ["peti"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -52,4 +54,4 @@
       "tsconfigPaths": true
     }
   }
-} 
+}

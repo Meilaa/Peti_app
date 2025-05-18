@@ -143,6 +143,7 @@ export default function Payment() {
         throw new Error('Authentication required');
       }
 
+      console.log('Starting customer creation...');
       // First create or get customer
       const customerResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-customer`, {
         method: 'POST',
@@ -153,19 +154,41 @@ export default function Payment() {
         }
       });
 
+      console.log('Customer creation response status:', customerResponse.status);
+      const customerResponseText = await customerResponse.text();
+      console.log('Raw customer creation response:', customerResponseText);
+
       if (!customerResponse.ok) {
-        const errorData = await customerResponse.json();
-        throw new Error(errorData.error || 'Customer setup failed');
+        let errorMessage = 'Failed to create customer';
+        try {
+          const errorData = JSON.parse(customerResponseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
-      const customerData = await customerResponse.json();
-      console.log('Customer data:', customerData);
+      let customerData;
+      try {
+        customerData = JSON.parse(customerResponseText);
+      } catch (e) {
+        console.error('Error parsing customer response:', e);
+        throw new Error('Invalid customer data received');
+      }
+
+      console.log('Parsed customer data:', customerData);
       
       if (!customerData.customerId) {
         throw new Error('No customer ID received from server');
       }
 
+      // Store the customer ID for future use
+      await AsyncStorage.setItem('stripeCustomerId', customerData.customerId);
+      console.log('Stored customer ID:', customerData.customerId);
+
       // Create payment sheet
+      console.log('Creating payment sheet with customer ID:', customerData.customerId);
       const paymentSheetResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-payment-sheet`, {
         method: 'POST',
         headers: {
@@ -175,17 +198,35 @@ export default function Payment() {
         },
         body: JSON.stringify({
           amount: Math.round(selectedPlan.price * 100),
-          currency: selectedPlan.currency
+          currency: selectedPlan.currency,
+          customerId: customerData.customerId
         })
       });
 
+      console.log('Payment sheet response status:', paymentSheetResponse.status);
+      const paymentSheetResponseText = await paymentSheetResponse.text();
+      console.log('Raw payment sheet response:', paymentSheetResponseText);
+
       if (!paymentSheetResponse.ok) {
-        const errorData = await paymentSheetResponse.json();
-        throw new Error(errorData.error || 'Payment setup failed');
+        let errorMessage = 'Payment setup failed';
+        try {
+          const errorData = JSON.parse(paymentSheetResponseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('Error parsing payment sheet error:', e);
+        }
+        throw new Error(errorMessage);
       }
 
-      const paymentSheetData = await paymentSheetResponse.json();
-      console.log('Payment sheet data:', paymentSheetData);
+      let paymentSheetData;
+      try {
+        paymentSheetData = JSON.parse(paymentSheetResponseText);
+      } catch (e) {
+        console.error('Error parsing payment sheet data:', e);
+        throw new Error('Invalid payment sheet data received');
+      }
+
+      console.log('Parsed payment sheet data:', paymentSheetData);
       
       const { paymentIntent, ephemeralKey, customer } = paymentSheetData;
 
@@ -193,10 +234,11 @@ export default function Payment() {
         throw new Error('Missing required payment sheet data');
       }
 
+      console.log('Initializing payment sheet with customer ID:', customerData.customerId);
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: paymentIntent,
         customerEphemeralKeySecret: ephemeralKey,
-        customerId: customer,
+        customerId: customerData.customerId,
         merchantDisplayName: 'Peti Pet Tracking',
         style: 'automatic',
         googlePay: {
@@ -209,12 +251,15 @@ export default function Payment() {
       });
 
       if (initError) {
+        console.error('Payment sheet initialization error:', initError);
         throw new Error(initError.message);
       }
 
+      console.log('Presenting payment sheet...');
       const { error: presentError } = await presentPaymentSheet();
       
       if (presentError) {
+        console.error('Payment sheet presentation error:', presentError);
         if (presentError.code === 'Canceled') {
           setProcessingPayment(false);
           return;
@@ -223,6 +268,7 @@ export default function Payment() {
       }
       
       // Payment successful, now create subscription
+      console.log('Creating subscription with customer ID:', customerData.customerId);
       const subscriptionResponse = await fetch(`${environments.API_BASE_URL}/api/stripe/create-subscription`, {
         method: 'POST',
         headers: {
@@ -231,18 +277,18 @@ export default function Payment() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          customerId: customer
+          customerId: customerData.customerId
         })
       });
 
       console.log('Subscription response status:', subscriptionResponse.status);
-      const responseText = await subscriptionResponse.text();
-      console.log('Raw subscription response:', responseText);
+      const subscriptionResponseText = await subscriptionResponse.text();
+      console.log('Raw subscription response:', subscriptionResponseText);
 
       if (!subscriptionResponse.ok) {
         let errorMessage = 'Subscription creation failed';
         try {
-          const errorData = JSON.parse(responseText);
+          const errorData = JSON.parse(subscriptionResponseText);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
           console.error('Error parsing error response:', e);
@@ -252,7 +298,7 @@ export default function Payment() {
 
       let subscriptionData;
       try {
-        subscriptionData = JSON.parse(responseText);
+        subscriptionData = JSON.parse(subscriptionResponseText);
       } catch (e) {
         console.error('Error parsing subscription response:', e);
         throw new Error('Invalid subscription data received');
