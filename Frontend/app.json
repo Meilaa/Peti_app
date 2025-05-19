@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Peti",
-    "slug": "Peti",
+    "slug": "peti",
     "scheme": "peti",
     "version": "1.0.0",
     "icon": "./assets/images/playstore-icon.png",
@@ -57,8 +57,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "1e48fb91-198e-42c8-bcb7-dc23bdda2ace"
+        "projectId": "6fcd4f41-e944-4070-b563-b1e013d4a963"
       }
-    }
+    },
+    "owner": "meibulka"
   }
 }

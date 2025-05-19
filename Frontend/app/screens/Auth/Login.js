@@ -29,8 +29,8 @@ const normalize = (size) => {
 };
 
 const Login = () => {
-  const [email, setEmail] = useState('Meila@gmail.com');
-  const [password, setPassword] = useState('Meila123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 

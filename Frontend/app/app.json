@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "Peti",
-    "slug": "peti-app",
+    "slug": "MyBachelor",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/playstore-icon.png",
+    "icon": "./assets/images/playstore-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",

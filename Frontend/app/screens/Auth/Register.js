@@ -33,10 +33,10 @@ const hp = (percentage) => {
 };
 
 const Register = () => {
-  const [username, setUsername] = useState('Meila');
-  const [email, setEmail] = useState('Meila@gmail.com');
-  const [password, setPassword] = useState('Meila123!');
-  const [confirmPassword, setConfirmPassword] = useState('Meila123!');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 

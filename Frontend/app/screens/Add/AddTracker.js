@@ -24,7 +24,7 @@ const hp = (percentage) => {
 };
 
 const AddTracker = () => {
-  const [trackerID, setTrackerID] = useState('352625692119264');
+  const [trackerID, setTrackerID] = useState('');
   const router = useRouter();
 
   const handleNavigateToHome = async () => {

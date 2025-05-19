@@ -26,7 +26,7 @@ const normalize = (size) => {
 };
 
 const PetInfo = () => {
-  const [petName, setPetName] = useState('Spraitulis');
+  const [petName, setPetName] = useState('');
   const [petGender, setPetGender] = useState(null);
   const router = useRouter();
 
